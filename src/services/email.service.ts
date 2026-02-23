@@ -3,11 +3,9 @@ import { authConfig } from '../config/auth.config';
 
 export const emailService = {
   /**
-   * Send email verification link
+   * Send email verification OTP
    */
-  async sendVerificationEmail(email: string, token: string, name: string): Promise<void> {
-    const verificationUrl = `${authConfig.urls.frontend}/verify-email?token=${token}`;
-
+  async sendVerificationEmail(email: string, name: string, otp: string): Promise<void> {
     const mailOptions = {
       from: emailConfig.from,
       to: email,
@@ -15,13 +13,14 @@ export const emailService = {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #333;">Welcome to MoodNote, ${name}!</h2>
-          <p style="color: #666; line-height: 1.6;">Thank you for registering. Please verify your email address by clicking the button below:</p>
+          <p style="color: #666; line-height: 1.6;">Thank you for registering. Use the OTP below to verify your email address:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${verificationUrl}" style="display: inline-block; padding: 12px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email</a>
+            <div style="background-color: #f0f4ff; border: 2px solid #007bff; padding: 20px 40px; border-radius: 8px; display: inline-block;">
+              <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">Your verification code</p>
+              <h1 style="margin: 0; letter-spacing: 12px; color: #007bff; font-size: 36px; font-weight: bold;">${otp}</h1>
+            </div>
           </div>
-          <p style="color: #666; line-height: 1.6;">Or copy and paste this link into your browser:</p>
-          <p style="color: #007bff; word-break: break-all;">${verificationUrl}</p>
-          <p style="color: #999; font-size: 14px; margin-top: 30px;">This link will expire in 24 hours.</p>
+          <p style="color: #999; font-size: 14px; margin-top: 30px;">This OTP will expire in 24 hours.</p>
           <p style="color: #999; font-size: 14px;">If you didn't create an account, please ignore this email.</p>
         </div>
       `,

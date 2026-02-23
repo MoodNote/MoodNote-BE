@@ -52,31 +52,29 @@ export const authService = {
 			},
 		});
 
-		// Generate email verification token
-		const verificationToken = tokenUtil.generateEmailVerificationToken();
+		// Generate OTP for email verification
+		const otp = tokenUtil.generateOTP();
+		const hashedOtp = tokenUtil.hashToken(otp);
 		const expiresAt = new Date(
 			Date.now() + authConfig.email.verificationExpiry,
 		);
 
+		// Invalidate any existing unused tokens
+		await prisma.emailVerification.updateMany({
+			where: { userId: user.id, isUsed: false },
+			data: { isUsed: true },
+		});
+
 		await prisma.emailVerification.create({
 			data: {
 				userId: user.id,
-				token: verificationToken,
+				token: hashedOtp,
 				expiresAt,
 			},
 		});
 
-		// Send verification email
-		// TODO: Configure email service before enabling this
-		// await emailService.sendVerificationEmail(
-		// 	user.email,
-		// 	verificationToken,
-		// 	user.name,
-		// );
-
-		// For development: Log token to console
-		console.log('📧 Email Verification Token:', verificationToken);
-		console.log('🔗 Verify URL:', `${authConfig.urls.frontend}/verify-email?token=${verificationToken}`);
+		// Send OTP verification email
+		await emailService.sendVerificationEmail(user.email, user.name, otp);
 
 		return {
 			user,
@@ -86,30 +84,39 @@ export const authService = {
 	},
 
 	/**
-	 * FR-01: Verify email address
+	 * FR-01: Verify email address with OTP
 	 */
-	async verifyEmail(token: string) {
-		const verification = await prisma.emailVerification.findUnique({
-			where: { token },
-			include: { user: true },
+	async verifyEmail(email: string, otp: string) {
+		const user = await prisma.user.findUnique({
+			where: { email: email.toLowerCase() },
+		});
+
+		if (!user) {
+			throw new Error("Invalid email or OTP");
+		}
+
+		if (user.isEmailVerified) {
+			throw new Error("Email is already verified");
+		}
+
+		const hashedOtp = tokenUtil.hashToken(otp);
+		const verification = await prisma.emailVerification.findFirst({
+			where: {
+				userId: user.id,
+				token: hashedOtp,
+				isUsed: false,
+				expiresAt: { gt: new Date() },
+			},
 		});
 
 		if (!verification) {
-			throw new Error("Invalid verification token");
-		}
-
-		if (verification.isUsed) {
-			throw new Error("Verification token has already been used");
-		}
-
-		if (new Date() > verification.expiresAt) {
-			throw new Error("Verification token has expired");
+			throw new Error("Invalid or expired OTP");
 		}
 
 		// Update user and mark token as used
 		await prisma.$transaction([
 			prisma.user.update({
-				where: { id: verification.userId },
+				where: { id: user.id },
 				data: { isEmailVerified: true },
 			}),
 			prisma.emailVerification.update({
@@ -120,6 +127,50 @@ export const authService = {
 
 		return {
 			message: "Email verified successfully. You can now login.",
+		};
+	},
+
+	/**
+	 * FR-01: Resend email verification OTP
+	 */
+	async resendVerificationOtp(email: string) {
+		const user = await prisma.user.findUnique({
+			where: { email: email.toLowerCase() },
+		});
+
+		if (!user) {
+			return {
+				message: "If an account exists with this email, a new OTP has been sent.",
+			};
+		}
+
+		if (user.isEmailVerified) {
+			throw new Error("Email is already verified");
+		}
+
+		// Invalidate old tokens
+		await prisma.emailVerification.updateMany({
+			where: { userId: user.id, isUsed: false },
+			data: { isUsed: true },
+		});
+
+		// Generate new OTP
+		const otp = tokenUtil.generateOTP();
+		const hashedOtp = tokenUtil.hashToken(otp);
+		const expiresAt = new Date(Date.now() + authConfig.email.verificationExpiry);
+
+		await prisma.emailVerification.create({
+			data: {
+				userId: user.id,
+				token: hashedOtp,
+				expiresAt,
+			},
+		});
+
+		await emailService.sendVerificationEmail(user.email, user.name, otp);
+
+		return {
+			message: "If an account exists with this email, a new OTP has been sent.",
 		};
 	},
 
@@ -297,12 +348,7 @@ export const authService = {
 		});
 
 		// Send password reset email with OTP
-		// TODO: Configure email service before enabling this
-		// await emailService.sendPasswordResetEmail(user.email, otp, user.name);
-
-		// For development: Log OTP to console
-		console.log('🔐 Password Reset OTP:', otp);
-		console.log('📧 Email:', user.email);
+		await emailService.sendPasswordResetEmail(user.email, otp, user.name);
 
 		return {
 			message:
@@ -311,27 +357,64 @@ export const authService = {
 	},
 
 	/**
-	 * FR-03: Reset password with token
+	 * FR-03: Verify OTP for password reset
 	 */
-	async resetPassword(token: string, newPassword: string) {
-		// Hash the provided token to match stored hash
-		const hashedToken = tokenUtil.hashToken(token);
-
-		const resetToken = await prisma.passwordReset.findUnique({
-			where: { token: hashedToken },
-			include: { user: true },
+	async verifyResetOtp(email: string, otp: string) {
+		const user = await prisma.user.findUnique({
+			where: { email: email.toLowerCase() },
 		});
 
-		if (!resetToken) {
-			throw new Error("Invalid or expired reset token");
+		if (!user) {
+			throw new Error("Invalid email or OTP");
 		}
 
-		if (resetToken.isUsed) {
-			throw new Error("Reset token has already been used");
+		const hashedOtp = tokenUtil.hashToken(otp);
+		const resetRecord = await prisma.passwordReset.findFirst({
+			where: {
+				userId: user.id,
+				token: hashedOtp,
+				isUsed: false,
+				expiresAt: { gt: new Date() },
+			},
+		});
+
+		if (!resetRecord) {
+			throw new Error("Invalid or expired OTP");
 		}
 
-		if (new Date() > resetToken.expiresAt) {
-			throw new Error("Reset token has expired");
+		await prisma.passwordReset.update({
+			where: { id: resetRecord.id },
+			data: { isVerified: true },
+		});
+
+		return {
+			message: "OTP verified. You can now reset your password.",
+		};
+	},
+
+	/**
+	 * FR-03: Reset password after OTP verification
+	 */
+	async resetPassword(email: string, newPassword: string) {
+		const user = await prisma.user.findUnique({
+			where: { email: email.toLowerCase() },
+		});
+
+		if (!user) {
+			throw new Error("Invalid request");
+		}
+
+		const resetRecord = await prisma.passwordReset.findFirst({
+			where: {
+				userId: user.id,
+				isVerified: true,
+				isUsed: false,
+				expiresAt: { gt: new Date() },
+			},
+		});
+
+		if (!resetRecord) {
+			throw new Error("No verified OTP found. Please verify your OTP first.");
 		}
 
 		// Validate new password
@@ -352,15 +435,15 @@ export const authService = {
 		// Update password, mark token as used, and invalidate all refresh tokens
 		await prisma.$transaction([
 			prisma.user.update({
-				where: { id: resetToken.userId },
+				where: { id: user.id },
 				data: { password: hashedPassword },
 			}),
 			prisma.passwordReset.update({
-				where: { id: resetToken.id },
+				where: { id: resetRecord.id },
 				data: { isUsed: true },
 			}),
 			prisma.refreshToken.updateMany({
-				where: { userId: resetToken.userId },
+				where: { userId: user.id },
 				data: { isRevoked: true },
 			}),
 		]);

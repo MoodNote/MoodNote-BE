@@ -27,6 +27,13 @@ router.post(
 );
 
 router.post(
+  '/resend-verification',
+  authRateLimiter,
+  validate(authValidators.resendVerification),
+  authController.resendVerificationOtp
+);
+
+router.post(
   '/login',
   loginRateLimiter,
   checkAccountLockout,
@@ -46,6 +53,13 @@ router.post(
   authRateLimiter,
   validate(authValidators.forgotPassword),
   authController.forgotPassword
+);
+
+router.post(
+  '/verify-reset-otp',
+  authRateLimiter,
+  validate(authValidators.verifyResetOtp),
+  authController.verifyResetOtp
 );
 
 router.post(

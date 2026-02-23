@@ -39,7 +39,15 @@ export const authValidators = {
   // Verify email validation
   verifyEmail: z.object({
     body: z.object({
-      token: z.string().min(1, 'Verification token is required'),
+      email: emailSchema,
+      otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must contain only digits'),
+    }),
+  }),
+
+  // Resend verification OTP validation
+  resendVerification: z.object({
+    body: z.object({
+      email: emailSchema,
     }),
   }),
 
@@ -50,10 +58,18 @@ export const authValidators = {
     }),
   }),
 
+  // Verify reset OTP validation
+  verifyResetOtp: z.object({
+    body: z.object({
+      email: emailSchema,
+      otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must contain only digits'),
+    }),
+  }),
+
   // Reset password validation
   resetPassword: z.object({
     body: z.object({
-      token: z.string().min(1, 'Reset token is required'),
+      email: emailSchema,
       password: passwordSchema,
       confirmPassword: z.string(),
     }).refine((data) => data.password === data.confirmPassword, {

@@ -28,8 +28,8 @@ export const authController = {
    */
   async verifyEmail(req: Request, res: Response) {
     try {
-      const { token } = req.body;
-      const result = await authService.verifyEmail(token);
+      const { email, otp } = req.body;
+      const result = await authService.verifyEmail(email, otp);
 
       res.status(200).json({
         success: true,
@@ -39,6 +39,26 @@ export const authController = {
       res.status(400).json({
         success: false,
         message: error.message || 'Email verification failed',
+      });
+    }
+  },
+
+  /**
+   * POST /api/auth/resend-verification
+   */
+  async resendVerificationOtp(req: Request, res: Response) {
+    try {
+      const { email } = req.body;
+      const result = await authService.resendVerificationOtp(email);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to resend verification OTP',
       });
     }
   },
@@ -107,12 +127,32 @@ export const authController = {
   },
 
   /**
+   * POST /api/auth/verify-reset-otp
+   */
+  async verifyResetOtp(req: Request, res: Response) {
+    try {
+      const { email, otp } = req.body;
+      const result = await authService.verifyResetOtp(email, otp);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'OTP verification failed',
+      });
+    }
+  },
+
+  /**
    * POST /api/auth/reset-password
    */
   async resetPassword(req: Request, res: Response) {
     try {
-      const { token, password } = req.body;
-      const result = await authService.resetPassword(token, password);
+      const { email, password } = req.body;
+      const result = await authService.resetPassword(email, password);
 
       res.status(200).json({
         success: true,
