@@ -38,4 +38,8 @@ coverage/
 docs
 
 /src/generated/prisma
+
+
+#Claude code
 .claude
+Claude.md

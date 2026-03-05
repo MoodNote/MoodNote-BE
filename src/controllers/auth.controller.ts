@@ -1,214 +1,220 @@
-import { Request, Response } from 'express';
-import { authService } from '../services/auth.service';
+import { Request, Response } from "express";
+import { authService } from "../services/auth.service";
 
 export const authController = {
-  /**
-   * POST /api/auth/register
-   */
-  async register(req: Request, res: Response) {
-    try {
-      const { email, password, name } = req.body;
-      const result = await authService.register({ email, password, name });
+	/**
+	 * POST /api/auth/register
+	 */
+	async register(req: Request, res: Response) {
+		try {
+			const { email, username, password, name } = req.body;
+			const result = await authService.register({
+				email,
+				username,
+				password,
+				name,
+			});
 
-      res.status(201).json({
-        success: true,
-        message: result.message,
-        data: { user: result.user },
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'Registration failed',
-      });
-    }
-  },
+			res.status(201).json({
+				success: true,
+				message: result.message,
+				data: { user: result.user },
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "Registration failed",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/verify-email
-   */
-  async verifyEmail(req: Request, res: Response) {
-    try {
-      const { email, otp } = req.body;
-      const result = await authService.verifyEmail(email, otp);
+	/**
+	 * POST /api/auth/verify-email
+	 */
+	async verifyEmail(req: Request, res: Response) {
+		try {
+			const { email, otp } = req.body;
+			const result = await authService.verifyEmail(email, otp);
 
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'Email verification failed',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "Email verification failed",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/resend-verification
-   */
-  async resendVerificationOtp(req: Request, res: Response) {
-    try {
-      const { email } = req.body;
-      const result = await authService.resendVerificationOtp(email);
+	/**
+	 * POST /api/auth/resend-verification
+	 */
+	async resendVerificationOtp(req: Request, res: Response) {
+		try {
+			const { email } = req.body;
+			const result = await authService.resendVerificationOtp(email);
 
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'Failed to resend verification OTP',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "Failed to resend verification OTP",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/login
-   */
-  async login(req: Request, res: Response) {
-    try {
-      const { email, password } = req.body;
-      const result = await authService.login(email, password);
+	/**
+	 * POST /api/auth/login
+	 */
+	async login(req: Request, res: Response) {
+		try {
+			const { identifier, password } = req.body;
+			const result = await authService.login(identifier, password);
 
-      res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        data: result,
-      });
-    } catch (error: any) {
-      res.status(401).json({
-        success: false,
-        message: error.message || 'Login failed',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: "Login successful",
+				data: result,
+			});
+		} catch (error: any) {
+			res.status(401).json({
+				success: false,
+				message: error.message || "Login failed",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/refresh
-   */
-  async refreshToken(req: Request, res: Response) {
-    try {
-      const { refreshToken } = req.body;
-      const result = await authService.refreshAccessToken(refreshToken);
+	/**
+	 * POST /api/auth/refresh
+	 */
+	async refreshToken(req: Request, res: Response) {
+		try {
+			const { refreshToken } = req.body;
+			const result = await authService.refreshAccessToken(refreshToken);
 
-      res.status(200).json({
-        success: true,
-        message: 'Token refreshed successfully',
-        data: result,
-      });
-    } catch (error: any) {
-      res.status(401).json({
-        success: false,
-        message: error.message || 'Token refresh failed',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: "Token refreshed successfully",
+				data: result,
+			});
+		} catch (error: any) {
+			res.status(401).json({
+				success: false,
+				message: error.message || "Token refresh failed",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/forgot-password
-   */
-  async forgotPassword(req: Request, res: Response) {
-    try {
-      const { email } = req.body;
-      const result = await authService.forgotPassword(email);
+	/**
+	 * POST /api/auth/forgot-password
+	 */
+	async forgotPassword(req: Request, res: Response) {
+		try {
+			const { email } = req.body;
+			const result = await authService.forgotPassword(email);
 
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error: any) {
-      // Always return 200 to prevent user enumeration
-      res.status(200).json({
-        success: true,
-        message: 'If an account exists with this email, a password reset link has been sent.',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			// Always return 200 to prevent user enumeration
+			res.status(200).json({
+				success: true,
+				message:
+					"If an account exists with this email, a password reset link has been sent.",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/verify-reset-otp
-   */
-  async verifyResetOtp(req: Request, res: Response) {
-    try {
-      const { email, otp } = req.body;
-      const result = await authService.verifyResetOtp(email, otp);
+	/**
+	 * POST /api/auth/verify-reset-otp
+	 */
+	async verifyResetOtp(req: Request, res: Response) {
+		try {
+			const { email, otp } = req.body;
+			const result = await authService.verifyResetOtp(email, otp);
 
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'OTP verification failed',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "OTP verification failed",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/reset-password
-   */
-  async resetPassword(req: Request, res: Response) {
-    try {
-      const { email, password } = req.body;
-      const result = await authService.resetPassword(email, password);
+	/**
+	 * POST /api/auth/reset-password
+	 */
+	async resetPassword(req: Request, res: Response) {
+		try {
+			const { email, password } = req.body;
+			const result = await authService.resetPassword(email, password);
 
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'Password reset failed',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "Password reset failed",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/change-password
-   */
-  async changePassword(req: Request, res: Response) {
-    try {
-      const { currentPassword, newPassword } = req.body;
-      const userId = req.user!.userId; // From auth middleware
+	/**
+	 * POST /api/auth/change-password
+	 */
+	async changePassword(req: Request, res: Response) {
+		try {
+			const { currentPassword, newPassword } = req.body;
+			const userId = req.user!.userId; // From auth middleware
 
-      const result = await authService.changePassword(
-        userId,
-        currentPassword,
-        newPassword
-      );
+			const result = await authService.changePassword(
+				userId,
+				currentPassword,
+				newPassword,
+			);
 
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'Password change failed',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "Password change failed",
+			});
+		}
+	},
 
-  /**
-   * POST /api/auth/logout
-   */
-  async logout(req: Request, res: Response) {
-    try {
-      const { refreshToken } = req.body;
-      const result = await authService.logout(refreshToken);
+	/**
+	 * POST /api/auth/logout
+	 */
+	async logout(req: Request, res: Response) {
+		try {
+			const { refreshToken } = req.body;
+			const result = await authService.logout(refreshToken);
 
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'Logout failed',
-      });
-    }
-  },
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "Logout failed",
+			});
+		}
+	},
 };

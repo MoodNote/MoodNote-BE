@@ -9,7 +9,12 @@ export const authService = {
 	/**
 	 * FR-01: Register new user
 	 */
-	async register(data: { email: string; password: string; name: string }) {
+	async register(data: {
+		email: string;
+		username: string;
+		password: string;
+		name: string;
+	}) {
 		// Check if email already exists
 		const existingUser = await prisma.user.findUnique({
 			where: { email: data.email.toLowerCase() },
@@ -17,6 +22,15 @@ export const authService = {
 
 		if (existingUser) {
 			throw new Error("Email already registered");
+		}
+
+		// Check if username already exists
+		const existingUsername = await prisma.user.findUnique({
+			where: { username: data.username.toLowerCase() },
+		});
+
+		if (existingUsername) {
+			throw new Error("Username already taken");
 		}
 
 		// Validate password strength
@@ -39,6 +53,7 @@ export const authService = {
 		const user = await prisma.user.create({
 			data: {
 				email: data.email.toLowerCase(),
+				username: data.username.toLowerCase(),
 				name: data.name,
 				password: hashedPassword,
 				isEmailVerified: false,
@@ -47,6 +62,7 @@ export const authService = {
 			select: {
 				id: true,
 				email: true,
+				username: true,
 				name: true,
 				createdAt: true,
 			},
@@ -140,7 +156,8 @@ export const authService = {
 
 		if (!user) {
 			return {
-				message: "If an account exists with this email, a new OTP has been sent.",
+				message:
+					"If an account exists with this email, a new OTP has been sent.",
 			};
 		}
 
@@ -157,7 +174,9 @@ export const authService = {
 		// Generate new OTP
 		const otp = tokenUtil.generateOTP();
 		const hashedOtp = tokenUtil.hashToken(otp);
-		const expiresAt = new Date(Date.now() + authConfig.email.verificationExpiry);
+		const expiresAt = new Date(
+			Date.now() + authConfig.email.verificationExpiry,
+		);
 
 		await prisma.emailVerification.create({
 			data: {
@@ -170,21 +189,28 @@ export const authService = {
 		await emailService.sendVerificationEmail(user.email, user.name, otp);
 
 		return {
-			message: "If an account exists with this email, a new OTP has been sent.",
+			message:
+				"If an account exists with this email, a new OTP has been sent.",
 		};
 	},
 
 	/**
 	 * FR-02: Login user
 	 */
-	async login(email: string, password: string) {
-		const user = await prisma.user.findUnique({
-			where: { email: email.toLowerCase() },
-		});
+	async login(identifier: string, password: string) {
+		// Detect whether identifier is an email or username
+		const isEmail = identifier.includes("@");
+		const user = isEmail
+			? await prisma.user.findUnique({
+					where: { email: identifier.toLowerCase() },
+				})
+			: await prisma.user.findUnique({
+					where: { username: identifier.toLowerCase() },
+				});
 
 		// Don't reveal if user exists (prevent enumeration)
 		if (!user) {
-			throw new Error("Invalid email or password");
+			throw new Error("Invalid email/username or password");
 		}
 
 		// Check if account is locked
@@ -217,7 +243,7 @@ export const authService = {
 				data: updateData,
 			});
 
-			throw new Error("Invalid email or password");
+			throw new Error("Invalid email/username or password");
 		}
 
 		// Check if email is verified
@@ -262,6 +288,7 @@ export const authService = {
 			user: {
 				id: user.id,
 				email: user.email,
+				username: user.username,
 				name: user.name,
 			},
 		};
@@ -414,7 +441,9 @@ export const authService = {
 		});
 
 		if (!resetRecord) {
-			throw new Error("No verified OTP found. Please verify your OTP first.");
+			throw new Error(
+				"No verified OTP found. Please verify your OTP first.",
+			);
 		}
 
 		// Validate new password
@@ -517,7 +546,7 @@ export const authService = {
 		// await emailService.sendPasswordChangedEmail(user.email, user.name);
 
 		// For development: Log to console
-		console.log('✅ Password changed for:', user.email);
+		console.log("✅ Password changed for:", user.email);
 
 		return {
 			message: "Password changed successfully",
