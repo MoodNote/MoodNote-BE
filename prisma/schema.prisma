@@ -27,6 +27,7 @@ model User {
   emailVerifications  EmailVerification[]
   passwordResets      PasswordReset[]
   refreshTokens       RefreshToken[]
+  moodEntries         MoodEntry[]
 
   @@index([email])
   @@index([username])
@@ -80,4 +81,40 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+enum InputMethod {
+  TEXT
+  VOICE
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model MoodEntry {
+  id               String         @id @default(uuid())
+  userId           String
+  encryptedContent String         @db.Text
+  contentIv        String
+  wordCount        Int            @default(0)
+  entryDate        DateTime
+  inputMethod      InputMethod    @default(TEXT)
+  tags             String[]       @default([])
+  isPrivate        Boolean        @default(false)
+  analysisStatus   AnalysisStatus @default(PENDING)
+  aiAnalysisId     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, entryDate])
+  @@index([userId, createdAt])
+  @@index([analysisStatus])
+  @@map("mood_entries")
 }

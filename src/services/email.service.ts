@@ -1,16 +1,20 @@
-import { emailTransporter, emailConfig } from '../config/email.config';
-import { authConfig } from '../config/auth.config';
+import { emailTransporter, emailConfig } from "../config/email.config";
+import { authConfig } from "../config/auth.config";
 
 export const emailService = {
-  /**
-   * Send email verification OTP
-   */
-  async sendVerificationEmail(email: string, name: string, otp: string): Promise<void> {
-    const mailOptions = {
-      from: emailConfig.from,
-      to: email,
-      subject: 'Verify Your Email - MoodNote',
-      html: `
+	/**
+	 * Send email verification OTP
+	 */
+	async sendVerificationEmail(
+		email: string,
+		name: string,
+		otp: string,
+	): Promise<void> {
+		const mailOptions = {
+			from: emailConfig.from,
+			to: email,
+			subject: "Verify Your Email - MoodNote",
+			html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #333;">Welcome to MoodNote, ${name}!</h2>
           <p style="color: #666; line-height: 1.6;">Thank you for registering. Use the OTP below to verify your email address:</p>
@@ -24,20 +28,24 @@ export const emailService = {
           <p style="color: #999; font-size: 14px;">If you didn't create an account, please ignore this email.</p>
         </div>
       `,
-    };
+		};
 
-    await emailTransporter.sendMail(mailOptions);
-  },
+		await emailTransporter.sendMail(mailOptions);
+	},
 
-  /**
-   * Send password reset OTP
-   */
-  async sendPasswordResetEmail(email: string, otp: string, name: string): Promise<void> {
-    const mailOptions = {
-      from: emailConfig.from,
-      to: email,
-      subject: 'Password Reset Request - MoodNote',
-      html: `
+	/**
+	 * Send password reset OTP
+	 */
+	async sendPasswordResetEmail(
+		email: string,
+		otp: string,
+		name: string,
+	): Promise<void> {
+		const mailOptions = {
+			from: emailConfig.from,
+			to: email,
+			subject: "Password Reset Request - MoodNote",
+			html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #333;">Password Reset Request</h2>
           <p style="color: #666; line-height: 1.6;">Hi ${name},</p>
@@ -51,20 +59,20 @@ export const emailService = {
           <p style="color: #999; font-size: 14px;">If you didn't request a password reset, please ignore this email or contact support if you have concerns.</p>
         </div>
       `,
-    };
+		};
 
-    await emailTransporter.sendMail(mailOptions);
-  },
+		await emailTransporter.sendMail(mailOptions);
+	},
 
-  /**
-   * Send password changed notification
-   */
-  async sendPasswordChangedEmail(email: string, name: string): Promise<void> {
-    const mailOptions = {
-      from: emailConfig.from,
-      to: email,
-      subject: 'Password Changed - MoodNote',
-      html: `
+	/**
+	 * Send password changed notification
+	 */
+	async sendPasswordChangedEmail(email: string, name: string): Promise<void> {
+		const mailOptions = {
+			from: emailConfig.from,
+			to: email,
+			subject: "Password Changed - MoodNote",
+			html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #333;">Password Changed Successfully</h2>
           <p style="color: #666; line-height: 1.6;">Hi ${name},</p>
@@ -73,8 +81,8 @@ export const emailService = {
           <p style="color: #999; font-size: 14px; margin-top: 30px;">For security reasons, all other sessions have been logged out.</p>
         </div>
       `,
-    };
+		};
 
-    await emailTransporter.sendMail(mailOptions);
-  },
+		await emailTransporter.sendMail(mailOptions);
+	},
 };
