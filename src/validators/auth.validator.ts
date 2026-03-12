@@ -88,6 +88,13 @@ export const authValidators = {
 		}),
 	}),
 
+	// Resend reset OTP validation
+	resendResetOtp: z.object({
+		body: z.object({
+			email: emailSchema,
+		}),
+	}),
+
 	// Verify reset OTP validation
 	verifyResetOtp: z.object({
 		body: z.object({

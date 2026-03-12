@@ -384,6 +384,51 @@ export const authService = {
 	},
 
 	/**
+	 * FR-03: Resend password reset OTP
+	 */
+	async resendResetOtp(email: string) {
+		const user = await prisma.user.findUnique({
+			where: { email: email.toLowerCase() },
+		});
+
+		// Always return generic message to prevent user enumeration
+		if (!user) {
+			return {
+				message:
+					"If an account exists with this email, a new OTP has been sent.",
+			};
+		}
+
+		// Invalidate all previous unused reset tokens
+		await prisma.passwordReset.updateMany({
+			where: { userId: user.id, isUsed: false },
+			data: { isUsed: true },
+		});
+
+		// Generate new OTP
+		const otp = tokenUtil.generateOTP();
+		const hashedOtp = tokenUtil.hashToken(otp);
+		const expiresAt = new Date(
+			Date.now() + authConfig.email.passwordResetExpiry,
+		);
+
+		await prisma.passwordReset.create({
+			data: {
+				userId: user.id,
+				token: hashedOtp,
+				expiresAt,
+			},
+		});
+
+		await emailService.sendPasswordResetEmail(user.email, otp, user.name);
+
+		return {
+			message:
+				"If an account exists with this email, a new OTP has been sent.",
+		};
+	},
+
+	/**
 	 * FR-03: Verify OTP for password reset
 	 */
 	async verifyResetOtp(email: string, otp: string) {

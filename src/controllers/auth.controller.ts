@@ -133,6 +133,28 @@ export const authController = {
 	},
 
 	/**
+	 * POST /api/auth/resend-reset-otp
+	 */
+	async resendResetOtp(req: Request, res: Response) {
+		try {
+			const { email } = req.body;
+			const result = await authService.resendResetOtp(email);
+
+			res.status(200).json({
+				success: true,
+				message: result.message,
+			});
+		} catch (error: any) {
+			// Always return 200 to prevent user enumeration
+			res.status(200).json({
+				success: true,
+				message:
+					"If an account exists with this email, a new OTP has been sent.",
+			});
+		}
+	},
+
+	/**
 	 * POST /api/auth/verify-reset-otp
 	 */
 	async verifyResetOtp(req: Request, res: Response) {
