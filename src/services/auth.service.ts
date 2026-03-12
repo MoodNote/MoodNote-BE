@@ -290,6 +290,7 @@ export const authService = {
 				email: user.email,
 				username: user.username,
 				name: user.name,
+				isEmailVerified: user.isEmailVerified,
 			},
 		};
 	},
