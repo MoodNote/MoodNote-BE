@@ -43,3 +43,6 @@ docs
 #Claude code
 .claude
 Claude.md
+
+# Firebase service account key (contains sensitive credentials)
+src/config/serviceAccountKey.json

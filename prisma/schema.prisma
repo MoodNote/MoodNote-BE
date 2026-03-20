@@ -15,6 +15,7 @@ model User {
   username            String              @unique
   name                String
   password            String
+  role                UserRole            @default(USER)
   isEmailVerified     Boolean             @default(false)
   isActive            Boolean             @default(true)
   failedLoginAttempts Int                 @default(0)
@@ -24,13 +25,17 @@ model User {
   updatedAt           DateTime            @updatedAt
 
   // Relations
-  emailVerifications  EmailVerification[]
-  passwordResets      PasswordReset[]
-  refreshTokens       RefreshToken[]
-  moodEntries         MoodEntry[]
+  emailVerifications   EmailVerification[]
+  passwordResets       PasswordReset[]
+  refreshTokens        RefreshToken[]
+  moodEntries          MoodEntry[]
+  notifications        Notification[]
+  notificationSettings NotificationSettings?
+  deviceTokens         DeviceToken[]
 
   @@index([email])
   @@index([username])
+  @@index([role])
   @@map("users")
 }
 
@@ -83,6 +88,17 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum NotificationType {
+  SYSTEM
+  REMINDER
+  STREAK
+}
+
 enum InputMethod {
   TEXT
   VOICE
@@ -117,4 +133,51 @@ model MoodEntry {
   @@index([userId, createdAt])
   @@index([analysisStatus])
   @@map("mood_entries")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  message   String           @db.Text
+  type      NotificationType @default(SYSTEM)
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model NotificationSettings {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  reminderEnabled Boolean  @default(true)
+  reminderTime    String   @default("21:00")
+  reminderDays    Int[]    @default([1, 2, 3, 4, 5, 6, 7])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }

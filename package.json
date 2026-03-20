@@ -12,7 +12,9 @@
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:reset": "ts-node prisma/reset.ts"
   },
   "keywords": [],
   "dependencies": {
@@ -23,9 +25,11 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
+    "firebase-admin": "^13.7.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
+    "node-cron": "^4.2.1",
     "nodemailer": "^8.0.0",
     "pg": "^8.18.0",
     "zod": "^4.3.6"
@@ -37,6 +41,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.0.3",
+    "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.9",
     "@types/pg": "^8.16.0",
     "nodemon": "^3.1.11",
