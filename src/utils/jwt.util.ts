@@ -47,6 +47,27 @@ export const jwtUtil = {
   },
 
   /**
+   * Generate admin access token (1 hour, separate secret)
+   */
+  generateAdminAccessToken(userId: string, email: string): string {
+    const payload: JwtPayload = {
+      userId,
+      email,
+      type: 'access',
+    };
+    return jwt.sign(payload, authConfig.jwt.adminSecret, {
+      expiresIn: authConfig.jwt.adminExpiresIn as jwt.SignOptions['expiresIn'],
+    });
+  },
+
+  /**
+   * Verify admin access token (uses admin secret)
+   */
+  verifyAdminAccessToken(token: string): JwtPayload {
+    return jwt.verify(token, authConfig.jwt.adminSecret) as JwtPayload;
+  },
+
+  /**
    * Decode token without verification (for debugging)
    */
   decode(token: string): JwtPayload | null {

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import app from "./app";
 import prisma from "./config/database";
+import { startReminderJob } from "./jobs/reminder.job";
 
 const PORT = process.env.PORT || 3000;
 
@@ -15,6 +16,7 @@ async function startServer() {
 			console.log(
 				`Environment: ${process.env.NODE_ENV || "development"}`,
 			);
+			startReminderJob();
 		});
 	} catch (error) {
 		console.error("Failed to connect to database:", error);

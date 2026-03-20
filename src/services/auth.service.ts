@@ -600,13 +600,25 @@ export const authService = {
 	},
 
 	/**
-	 * Logout - revoke refresh token
+	 * Logout - revoke refresh token and remove device tokens
 	 */
-	async logout(refreshToken: string) {
-		await prisma.refreshToken.updateMany({
-			where: { token: refreshToken },
-			data: { isRevoked: true },
-		});
+	async logout(refreshToken: string, deviceToken?: string) {
+		const ops: Promise<unknown>[] = [
+			prisma.refreshToken.updateMany({
+				where: { token: refreshToken },
+				data: { isRevoked: true },
+			}),
+		];
+
+		if (deviceToken) {
+			ops.push(
+				prisma.deviceToken.deleteMany({
+					where: { token: deviceToken },
+				}),
+			);
+		}
+
+		await Promise.all(ops);
 
 		return {
 			message: "Logged out successfully",

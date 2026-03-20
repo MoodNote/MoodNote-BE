@@ -84,6 +84,11 @@ router.post(
 	authController.changePassword,
 );
 
-router.post("/logout", authenticate, authController.logout);
+router.post(
+	"/logout",
+	authenticate,
+	validate(authValidators.logout),
+	authController.logout,
+);
 
 export default router;

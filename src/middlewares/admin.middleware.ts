@@ -2,40 +2,25 @@ import { Request, Response, NextFunction } from "express";
 import { jwtUtil } from "../utils/jwt.util";
 import prisma from "../config/database";
 
-// Extend Express Request type
-declare global {
-	namespace Express {
-		interface Request {
-			user?: {
-				userId: string;
-				email: string;
-				role: string;
-			};
-		}
-	}
-}
-
-export const authenticate = async (
+export const authenticateAdmin = async (
 	req: Request,
 	res: Response,
 	next: NextFunction,
 ) => {
 	try {
-		// Extract token from Authorization header
 		const authHeader = req.headers.authorization;
 		if (!authHeader || !authHeader.startsWith("Bearer ")) {
 			return res.status(401).json({
 				success: false,
-				message: "Access token is required",
+				message: "Admin access token is required",
 			});
 		}
 
-		const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+		const token = authHeader.substring(7);
 
-		// Verify token
-		const payload = jwtUtil.verifyAccessToken(token);
+		// Verify using admin secret
+		const payload = jwtUtil.verifyAdminAccessToken(token);
 
-		// Check if user exists and is active
 		const user = await prisma.user.findUnique({
 			where: { id: payload.userId },
 			select: {
@@ -68,7 +53,13 @@ export const authenticate = async (
 			});
 		}
 
-		// Attach user to request
+		if (user.role !== "ADMIN") {
+			return res.status(403).json({
+				success: false,
+				message: "Forbidden: Admin access required",
+			});
+		}
+
 		req.user = {
 			userId: user.id,
 			email: user.email,
@@ -80,13 +71,13 @@ export const authenticate = async (
 		if (error.name === "TokenExpiredError") {
 			return res.status(401).json({
 				success: false,
-				message: "Access token has expired",
+				message: "Admin access token has expired",
 			});
 		}
 		if (error.name === "JsonWebTokenError") {
 			return res.status(401).json({
 				success: false,
-				message: "Invalid access token",
+				message: "Invalid admin access token",
 			});
 		}
 		return res.status(500).json({

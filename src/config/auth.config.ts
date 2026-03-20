@@ -6,6 +6,10 @@ export const authConfig = {
 			process.env.REFRESH_TOKEN_SECRET ||
 			"default-refresh-secret-change-in-production",
 		refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || "7d",
+		adminSecret:
+			process.env.ADMIN_JWT_SECRET ||
+			"default-admin-secret-change-in-production",
+		adminExpiresIn: process.env.ADMIN_JWT_EXPIRES_IN || "1h",
 	},
 	bcrypt: {
 		saltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS || "12"),

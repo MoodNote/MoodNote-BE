@@ -225,8 +225,8 @@ export const authController = {
 	 */
 	async logout(req: Request, res: Response) {
 		try {
-			const { refreshToken } = req.body;
-			const result = await authService.logout(refreshToken);
+			const { refreshToken, deviceToken } = req.body;
+			const result = await authService.logout(refreshToken, deviceToken);
 
 			res.status(200).json({
 				success: true,
