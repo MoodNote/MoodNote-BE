@@ -36,7 +36,7 @@ app.use("/api", routes);
 // 404 handler
 app.use((_req: Request, res: Response) => {
 	res.status(404).json({
-		status: "error",
+		success: false,
 		message: "Route not found",
 	});
 });

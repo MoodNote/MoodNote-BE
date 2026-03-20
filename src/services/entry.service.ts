@@ -1,5 +1,6 @@
 import prisma from "../config/database";
 import { encrypt, decrypt } from "../utils/encryption.util";
+import { AppError } from "../utils/app-error.util";
 import { Prisma } from "@prisma/client";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
@@ -206,11 +207,11 @@ export const entryService = {
 		});
 
 		if (!entry) {
-			throw new Error("Entry not found");
+			throw new AppError("Entry not found", 404);
 		}
 
 		if (entry.userId !== userId) {
-			throw new Error("Access denied");
+			throw new AppError("Access denied", 403);
 		}
 
 		const decrypted = decrypt(
@@ -238,11 +239,11 @@ export const entryService = {
 		});
 
 		if (!entry) {
-			throw new Error("Entry not found");
+			throw new AppError("Entry not found", 404);
 		}
 
 		if (entry.userId !== userId) {
-			throw new Error("Access denied");
+			throw new AppError("Access denied", 403);
 		}
 
 		const hasUpdatableFields =
@@ -322,11 +323,11 @@ export const entryService = {
 		});
 
 		if (!entry) {
-			throw new Error("Entry not found");
+			throw new AppError("Entry not found", 404);
 		}
 
 		if (entry.userId !== userId) {
-			throw new Error("Access denied");
+			throw new AppError("Access denied", 403);
 		}
 
 		await prisma.moodEntry.delete({ where: { id: entryId } });

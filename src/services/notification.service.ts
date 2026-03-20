@@ -1,5 +1,6 @@
 import prisma from "../config/database";
 import { fcmUtil } from "../utils/fcm.util";
+import { AppError } from "../utils/app-error.util";
 import { NotificationType, Prisma } from "@prisma/client";
 
 interface ListNotificationsOptions {
@@ -75,7 +76,7 @@ export const notificationService = {
 		});
 
 		if (!notification) {
-			throw new Error("Notification not found");
+			throw new AppError("Notification not found", 404);
 		}
 
 		if (notification.isRead) {
@@ -102,7 +103,7 @@ export const notificationService = {
 		});
 
 		if (!notification) {
-			throw new Error("Notification not found");
+			throw new AppError("Notification not found", 404);
 		}
 
 		await prisma.notification.delete({ where: { id: notificationId } });

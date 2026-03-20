@@ -6,6 +6,8 @@ export const authConfig = {
 			process.env.REFRESH_TOKEN_SECRET ||
 			"default-refresh-secret-change-in-production",
 		refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || "7d",
+		// Derived from refreshExpiresIn — assumes "Xd" (days) format
+		refreshExpiresInMs: parseInt(process.env.REFRESH_TOKEN_EXPIRES_IN || "7") * 24 * 60 * 60 * 1000,
 		adminSecret:
 			process.env.ADMIN_JWT_SECRET ||
 			"default-admin-secret-change-in-production",

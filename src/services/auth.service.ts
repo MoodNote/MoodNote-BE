@@ -272,8 +272,8 @@ export const authService = {
 
 		// Store refresh token
 		const refreshTokenExpiry = new Date(
-			Date.now() + 7 * 24 * 60 * 60 * 1000,
-		); // 7 days
+			Date.now() + authConfig.jwt.refreshExpiresInMs,
+		);
 		await prisma.refreshToken.create({
 			data: {
 				userId: user.id,
@@ -300,10 +300,9 @@ export const authService = {
 	 */
 	async refreshAccessToken(refreshToken: string) {
 		// Verify refresh token
-		let payload;
 		try {
-			payload = jwtUtil.verifyRefreshToken(refreshToken);
-		} catch (error) {
+			jwtUtil.verifyRefreshToken(refreshToken);
+		} catch {
 			throw new Error("Invalid or expired refresh token");
 		}
 
@@ -587,12 +586,7 @@ export const authService = {
 			data: { password: hashedPassword },
 		});
 
-		// Send notification email
-		// TODO: Configure email service before enabling this
-		// await emailService.sendPasswordChangedEmail(user.email, user.name);
-
-		// For development: Log to console
-		console.log("✅ Password changed for:", user.email);
+		await emailService.sendPasswordChangedEmail(user.email, user.name);
 
 		return {
 			message: "Password changed successfully",

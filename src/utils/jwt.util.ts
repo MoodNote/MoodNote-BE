@@ -17,7 +17,9 @@ export const jwtUtil = {
       email,
       type: 'access',
     };
-    return jwt.sign(payload, authConfig.jwt.secret);
+    return jwt.sign(payload, authConfig.jwt.secret, {
+      expiresIn: authConfig.jwt.expiresIn as jwt.SignOptions['expiresIn'],
+    });
   },
 
   /**
@@ -29,7 +31,9 @@ export const jwtUtil = {
       email,
       type: 'refresh',
     };
-    return jwt.sign(payload, authConfig.jwt.refreshSecret);
+    return jwt.sign(payload, authConfig.jwt.refreshSecret, {
+      expiresIn: authConfig.jwt.refreshExpiresIn as jwt.SignOptions['expiresIn'],
+    });
   },
 
   /**

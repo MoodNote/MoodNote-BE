@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import { authService } from "../services/auth.service";
 
+const errMsg = (error: unknown, fallback: string) =>
+	error instanceof Error ? error.message : fallback;
+
 export const authController = {
 	/**
 	 * POST /api/auth/register
@@ -20,10 +23,10 @@ export const authController = {
 				message: result.message,
 				data: { user: result.user },
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(400).json({
 				success: false,
-				message: error.message || "Registration failed",
+				message: errMsg(error, "Registration failed"),
 			});
 		}
 	},
@@ -40,10 +43,10 @@ export const authController = {
 				success: true,
 				message: result.message,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(400).json({
 				success: false,
-				message: error.message || "Email verification failed",
+				message: errMsg(error, "Email verification failed"),
 			});
 		}
 	},
@@ -60,10 +63,10 @@ export const authController = {
 				success: true,
 				message: result.message,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(400).json({
 				success: false,
-				message: error.message || "Failed to resend verification OTP",
+				message: errMsg(error, "Failed to resend verification OTP"),
 			});
 		}
 	},
@@ -81,10 +84,10 @@ export const authController = {
 				message: "Login successful",
 				data: result,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(401).json({
 				success: false,
-				message: error.message || "Login failed",
+				message: errMsg(error, "Login failed"),
 			});
 		}
 	},
@@ -102,10 +105,10 @@ export const authController = {
 				message: "Token refreshed successfully",
 				data: result,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(401).json({
 				success: false,
-				message: error.message || "Token refresh failed",
+				message: errMsg(error, "Token refresh failed"),
 			});
 		}
 	},
@@ -116,14 +119,10 @@ export const authController = {
 	async forgotPassword(req: Request, res: Response) {
 		try {
 			const { email } = req.body;
-			const result = await authService.forgotPassword(email);
-
-			res.status(200).json({
-				success: true,
-				message: result.message,
-			});
-		} catch (error: any) {
-			// Always return 200 to prevent user enumeration
+			await authService.forgotPassword(email);
+		} catch {
+			// Intentionally swallowed — always return 200 to prevent user enumeration
+		} finally {
 			res.status(200).json({
 				success: true,
 				message:
@@ -138,14 +137,10 @@ export const authController = {
 	async resendResetOtp(req: Request, res: Response) {
 		try {
 			const { email } = req.body;
-			const result = await authService.resendResetOtp(email);
-
-			res.status(200).json({
-				success: true,
-				message: result.message,
-			});
-		} catch (error: any) {
-			// Always return 200 to prevent user enumeration
+			await authService.resendResetOtp(email);
+		} catch {
+			// Intentionally swallowed — always return 200 to prevent user enumeration
+		} finally {
 			res.status(200).json({
 				success: true,
 				message:
@@ -166,10 +161,10 @@ export const authController = {
 				success: true,
 				message: result.message,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(400).json({
 				success: false,
-				message: error.message || "OTP verification failed",
+				message: errMsg(error, "OTP verification failed"),
 			});
 		}
 	},
@@ -186,10 +181,10 @@ export const authController = {
 				success: true,
 				message: result.message,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(400).json({
 				success: false,
-				message: error.message || "Password reset failed",
+				message: errMsg(error, "Password reset failed"),
 			});
 		}
 	},
@@ -200,7 +195,7 @@ export const authController = {
 	async changePassword(req: Request, res: Response) {
 		try {
 			const { currentPassword, newPassword } = req.body;
-			const userId = req.user!.userId; // From auth middleware
+			const userId = req.user!.userId;
 
 			const result = await authService.changePassword(
 				userId,
@@ -212,10 +207,10 @@ export const authController = {
 				success: true,
 				message: result.message,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(400).json({
 				success: false,
-				message: error.message || "Password change failed",
+				message: errMsg(error, "Password change failed"),
 			});
 		}
 	},
@@ -232,10 +227,10 @@ export const authController = {
 				success: true,
 				message: result.message,
 			});
-		} catch (error: any) {
+		} catch (error) {
 			res.status(400).json({
 				success: false,
-				message: error.message || "Logout failed",
+				message: errMsg(error, "Logout failed"),
 			});
 		}
 	},

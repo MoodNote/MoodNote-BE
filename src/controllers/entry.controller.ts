@@ -1,5 +1,18 @@
 import { Request, Response } from "express";
 import { entryService } from "../services/entry.service";
+import { AppError } from "../utils/app-error.util";
+
+const handleError = (error: unknown, res: Response, fallback: string) => {
+	if (error instanceof AppError) {
+		return res
+			.status(error.statusCode)
+			.json({ success: false, message: error.message });
+	}
+	res.status(400).json({
+		success: false,
+		message: error instanceof Error ? error.message : fallback,
+	});
+};
 
 export const entryController = {
 	/**
@@ -23,11 +36,8 @@ export const entryController = {
 				message: "Entry created successfully",
 				data: { entry },
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to create entry",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to create entry");
 		}
 	},
 
@@ -46,7 +56,7 @@ export const entryController = {
 				startDate: req.query.startDate as string | undefined,
 				endDate: req.query.endDate as string | undefined,
 				tags: req.query.tags as string | undefined,
-				analysisStatus: req.query.analysisStatus as any,
+				analysisStatus: req.query.analysisStatus as string | undefined,
 			});
 
 			res.status(200).json({
@@ -54,11 +64,8 @@ export const entryController = {
 				message: "Entries retrieved successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to retrieve entries",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve entries");
 		}
 	},
 
@@ -77,21 +84,8 @@ export const entryController = {
 				message: "Entry retrieved successfully",
 				data: { entry },
 			});
-		} catch (error: any) {
-			if (error.message === "Entry not found") {
-				return res
-					.status(404)
-					.json({ success: false, message: error.message });
-			}
-			if (error.message === "Access denied") {
-				return res
-					.status(403)
-					.json({ success: false, message: error.message });
-			}
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to retrieve entry",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve entry");
 		}
 	},
 
@@ -117,26 +111,8 @@ export const entryController = {
 				message: "Entry updated successfully",
 				data: { entry },
 			});
-		} catch (error: any) {
-			if (error.message === "Entry not found") {
-				return res
-					.status(404)
-					.json({ success: false, message: error.message });
-			}
-			if (error.message === "Access denied") {
-				return res
-					.status(403)
-					.json({ success: false, message: error.message });
-			}
-			if (error.message === "No fields to update") {
-				return res
-					.status(400)
-					.json({ success: false, message: error.message });
-			}
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to update entry",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to update entry");
 		}
 	},
 
@@ -155,11 +131,8 @@ export const entryController = {
 				message: "Entries deleted successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to delete entries",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to delete entries");
 		}
 	},
 
@@ -177,21 +150,8 @@ export const entryController = {
 				success: true,
 				message: result.message,
 			});
-		} catch (error: any) {
-			if (error.message === "Entry not found") {
-				return res
-					.status(404)
-					.json({ success: false, message: error.message });
-			}
-			if (error.message === "Access denied") {
-				return res
-					.status(403)
-					.json({ success: false, message: error.message });
-			}
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to delete entry",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to delete entry");
 		}
 	},
 };

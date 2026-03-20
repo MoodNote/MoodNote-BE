@@ -1,6 +1,19 @@
 import { Request, Response } from "express";
 import { notificationService } from "../services/notification.service";
+import { AppError } from "../utils/app-error.util";
 import { NotificationType } from "@prisma/client";
+
+const handleError = (error: unknown, res: Response, fallback: string) => {
+	if (error instanceof AppError) {
+		return res
+			.status(error.statusCode)
+			.json({ success: false, message: error.message });
+	}
+	res.status(400).json({
+		success: false,
+		message: error instanceof Error ? error.message : fallback,
+	});
+};
 
 export const notificationController = {
 	async listNotifications(req: Request, res: Response) {
@@ -24,11 +37,8 @@ export const notificationController = {
 				message: "Notifications retrieved successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to retrieve notifications",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve notifications");
 		}
 	},
 
@@ -42,11 +52,8 @@ export const notificationController = {
 				message: "Unread count retrieved",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to get unread count",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to get unread count");
 		}
 	},
 
@@ -61,12 +68,8 @@ export const notificationController = {
 				success: true,
 				message: "Notification marked as read",
 			});
-		} catch (error: any) {
-			const status = error.message === "Notification not found" ? 404 : 400;
-			res.status(status).json({
-				success: false,
-				message: error.message || "Failed to mark notification as read",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to mark notification as read");
 		}
 	},
 
@@ -80,11 +83,8 @@ export const notificationController = {
 				message: "All notifications marked as read",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to mark all as read",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to mark all as read");
 		}
 	},
 
@@ -99,12 +99,8 @@ export const notificationController = {
 				success: true,
 				message: "Notification deleted successfully",
 			});
-		} catch (error: any) {
-			const status = error.message === "Notification not found" ? 404 : 400;
-			res.status(status).json({
-				success: false,
-				message: error.message || "Failed to delete notification",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to delete notification");
 		}
 	},
 
@@ -118,11 +114,8 @@ export const notificationController = {
 				message: "Notification settings retrieved",
 				data: { settings },
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to retrieve settings",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve settings");
 		}
 	},
 
@@ -142,11 +135,8 @@ export const notificationController = {
 				message: "Notification settings updated",
 				data: { settings },
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to update settings",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to update settings");
 		}
 	},
 
@@ -161,11 +151,8 @@ export const notificationController = {
 				success: true,
 				message: "Device token registered successfully",
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to register device token",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to register device token");
 		}
 	},
 
@@ -180,11 +167,8 @@ export const notificationController = {
 				success: true,
 				message: "Device token removed successfully",
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to remove device token",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to remove device token");
 		}
 	},
 };
