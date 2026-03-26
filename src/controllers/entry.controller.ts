@@ -56,7 +56,12 @@ export const entryController = {
 				startDate: req.query.startDate as string | undefined,
 				endDate: req.query.endDate as string | undefined,
 				tags: req.query.tags as string | undefined,
-				analysisStatus: req.query.analysisStatus as string | undefined,
+				analysisStatus: req.query.analysisStatus as
+					| "PENDING"
+					| "PROCESSING"
+					| "COMPLETED"
+					| "FAILED"
+					| undefined,
 			});
 
 			res.status(200).json({
