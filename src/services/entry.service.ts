@@ -288,17 +288,23 @@ export const entryService = {
 				const plainText = extractPlainText(data.content);
 				updateData.wordCount = calcWordCount(plainText);
 				updateData.analysisStatus = "PENDING";
-				updateData.aiAnalysisId = null;
 			}
 		}
 
 		if (data.tags !== undefined) updateData.tags = data.tags;
 		if (data.isPrivate !== undefined) updateData.isPrivate = data.isPrivate;
 
-		const updated = await prisma.moodEntry.update({
-			where: { id: entryId },
-			data: updateData,
-		});
+		const contentChanged = data.content !== undefined;
+
+		const [updated] = await prisma.$transaction([
+			prisma.moodEntry.update({
+				where: { id: entryId },
+				data: updateData,
+			}),
+			...(contentChanged
+				? [prisma.emotionAnalysis.deleteMany({ where: { entryId } })]
+				: []),
+		]);
 
 		const decrypted = decrypt(
 			updated.encryptedContent,

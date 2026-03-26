@@ -46,3 +46,7 @@ Claude.md
 
 # Firebase service account key (contains sensitive credentials)
 src/config/serviceAccountKey.json
+
+
+#UML
+*.plantuml

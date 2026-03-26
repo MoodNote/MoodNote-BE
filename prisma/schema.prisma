@@ -9,6 +9,57 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum NotificationType {
+  SYSTEM
+  REMINDER
+  STREAK
+}
+
+enum InputMethod {
+  TEXT
+  VOICE
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum EmotionType {
+  HAPPY
+  SAD
+  ANGRY
+  ANXIOUS
+  FEARFUL
+  NEUTRAL
+}
+
+enum RecommendationMode {
+  MIRROR
+  SHIFT
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+// ─────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────
+
 model User {
   id                  String              @id @default(uuid())
   email               String              @unique
@@ -32,6 +83,10 @@ model User {
   notifications        Notification[]
   notificationSettings NotificationSettings?
   deviceTokens         DeviceToken[]
+  userSettings         UserSettings?
+  playlists            Playlist[]
+  musicRecommendations MusicRecommendation[]
+  songPlays            SongPlay[]
 
   @@index([email])
   @@index([username])
@@ -88,51 +143,21 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
+// ─────────────────────────────────────────
+// USER SETTINGS & NOTIFICATIONS
+// ─────────────────────────────────────────
 
-enum NotificationType {
-  SYSTEM
-  REMINDER
-  STREAK
-}
-
-enum InputMethod {
-  TEXT
-  VOICE
-}
-
-enum AnalysisStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-}
-
-model MoodEntry {
-  id               String         @id @default(uuid())
-  userId           String
-  encryptedContent String         @db.Text
-  contentIv        String
-  wordCount        Int            @default(0)
-  entryDate        DateTime
-  inputMethod      InputMethod    @default(TEXT)
-  tags             String[]       @default([])
-  isPrivate        Boolean        @default(false)
-  analysisStatus   AnalysisStatus @default(PENDING)
-  aiAnalysisId     String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+model UserSettings {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  theme     Theme    @default(SYSTEM)
+  language  String   @default("vi")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([userId, entryDate])
-  @@index([userId, createdAt])
-  @@index([analysisStatus])
-  @@map("mood_entries")
+  @@map("user_settings")
 }
 
 model Notification {
@@ -180,4 +205,236 @@ model DeviceToken {
 
   @@index([userId])
   @@map("device_tokens")
+}
+
+// ─────────────────────────────────────────
+// JOURNAL
+// ─────────────────────────────────────────
+
+model MoodEntry {
+  id               String         @id @default(uuid())
+  userId           String
+  encryptedContent String         @db.Text
+  contentIv        String
+  wordCount        Int            @default(0)
+  entryDate        DateTime
+  inputMethod      InputMethod    @default(TEXT)
+  tags             String[]       @default([])
+  isPrivate        Boolean        @default(false)
+  analysisStatus   AnalysisStatus @default(PENDING)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emotionAnalysis  EmotionAnalysis?
+  recommendations  MusicRecommendation[]
+
+  @@index([userId])
+  @@index([userId, entryDate])
+  @@index([userId, createdAt])
+  @@index([analysisStatus])
+  @@map("mood_entries")
+}
+
+model EmotionAnalysis {
+  id             String      @id @default(uuid())
+  entryId        String      @unique @map("entry_id")
+  primaryEmotion EmotionType @map("primary_emotion")
+  sentimentScore Float       @map("sentiment_score")
+  intensity      Int
+  modelVersion   String?     @map("model_version")
+  analyzedAt     DateTime    @default(now()) @map("analyzed_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  entry    MoodEntry      @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  keywords EntryKeyword[]
+
+  @@index([entryId])
+  @@index([primaryEmotion])
+  @@index([sentimentScore])
+  @@map("emotion_analyses")
+}
+
+model EntryKeyword {
+  id         String  @id @default(uuid())
+  analysisId String  @map("analysis_id")
+  keyword    String
+  relevance  Float
+
+  analysis EmotionAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@index([keyword])
+  @@map("entry_keywords")
+}
+
+// ─────────────────────────────────────────
+// MUSIC CATALOG
+// ─────────────────────────────────────────
+
+model Artist {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  songs SongArtist[]
+
+  @@index([name])
+  @@map("artists")
+}
+
+model Genre {
+  id   String @id @default(uuid())
+  name String @unique
+
+  songs SongGenre[]
+
+  @@index([name])
+  @@map("genres")
+}
+
+model Song {
+  id           String   @id @default(uuid())
+  title        String
+  album        String?
+  year         Int?
+  durationSecs Int?     @map("duration_secs")
+  moodTags     String[] @default([]) @map("mood_tags")
+  sentimentMin Float    @map("sentiment_min")
+  sentimentMax Float    @map("sentiment_max")
+  language     String?
+  popularity   Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  artists             SongArtist[]
+  genres              SongGenre[]
+  recommendationSongs RecommendationSong[]
+  playlistSongs       PlaylistSong[]
+  plays               SongPlay[]
+
+  @@index([sentimentMin, sentimentMax])
+  @@index([moodTags])
+  @@index([language])
+  @@index([popularity])
+  @@map("songs")
+}
+
+model SongArtist {
+  songId   String  @map("song_id")
+  artistId String  @map("artist_id")
+  role     String?
+
+  song   Song   @relation(fields: [songId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@id([songId, artistId])
+  @@index([songId])
+  @@index([artistId])
+  @@map("song_artists")
+}
+
+model SongGenre {
+  songId  String @map("song_id")
+  genreId String @map("genre_id")
+
+  song  Song  @relation(fields: [songId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([songId, genreId])
+  @@index([songId])
+  @@index([genreId])
+  @@map("song_genres")
+}
+
+// ─────────────────────────────────────────
+// RECOMMENDATIONS
+// ─────────────────────────────────────────
+
+model MusicRecommendation {
+  id          String             @id @default(uuid())
+  entryId     String             @map("entry_id")
+  userId      String             @map("user_id")
+  mode        RecommendationMode
+  generatedAt DateTime           @default(now()) @map("generated_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry MoodEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  songs RecommendationSong[]
+
+  @@unique([entryId, mode])
+  @@index([entryId])
+  @@index([userId])
+  @@index([userId, generatedAt])
+  @@map("music_recommendations")
+}
+
+model RecommendationSong {
+  recommendationId String @map("recommendation_id")
+  songId           String @map("song_id")
+  order            Int
+
+  recommendation MusicRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  song           Song                @relation(fields: [songId], references: [id], onDelete: Restrict)
+
+  @@id([recommendationId, songId])
+  @@index([recommendationId])
+  @@index([songId])
+  @@map("recommendation_songs")
+}
+
+// ─────────────────────────────────────────
+// PLAYLISTS
+// ─────────────────────────────────────────
+
+model Playlist {
+  id             String      @id @default(uuid())
+  userId         String      @map("user_id")
+  name           String
+  associatedMood EmotionType? @map("associated_mood")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs PlaylistSong[]
+
+  @@index([userId])
+  @@map("playlists")
+}
+
+model PlaylistSong {
+  playlistId String @map("playlist_id")
+  songId     String @map("song_id")
+  order      Int
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song     Song     @relation(fields: [songId], references: [id], onDelete: Restrict)
+
+  @@id([playlistId, songId])
+  @@index([playlistId])
+  @@index([songId])
+  @@map("playlist_songs")
+}
+
+// ─────────────────────────────────────────
+// ANALYTICS
+// ─────────────────────────────────────────
+
+model SongPlay {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  songId   String   @map("song_id")
+  playedAt DateTime @default(now()) @map("played_at")
+  context  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([songId])
+  @@index([userId, playedAt])
+  @@index([songId, playedAt])
+  @@map("song_plays")
 }
