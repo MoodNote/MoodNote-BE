@@ -22,14 +22,6 @@ app.get("/", (_req: Request, res: Response) => {
 	res.json({ message: "Welcome to MoodNote API" });
 });
 
-app.get("/health", (_req: Request, res: Response) => {
-	res.status(200).json({
-		status: "OK",
-		message: "Server is running",
-		timestamp: new Date().toISOString(),
-	});
-});
-
 // API routes
 app.use("/api", routes);
 
