@@ -4,41 +4,53 @@ import { AppError } from "../utils/app-error.util";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface CreateSongInput {
-	title: string;
-	album?: string;
-	year?: number;
-	durationSecs?: number;
-	moodTags: string[];
-	sentimentMin: number;
-	sentimentMax: number;
-	language?: string;
+interface CreateTrackInput {
+	trackName: string;
+	albumName?: string;
 	popularity?: number;
+	isExplicit?: boolean;
+	durationMs?: number;
+	danceability?: number;
+	energy?: number;
+	key?: number;
+	loudness?: number;
+	speechiness?: number;
+	acousticness?: number;
+	instrumentalness?: number;
+	liveness?: number;
+	valence?: number;
+	tempo?: number;
+	lyrics?: string;
 	artistIds: string[];
 	genreIds: string[];
 }
 
-interface UpdateSongInput {
-	title?: string;
-	album?: string;
-	year?: number;
-	durationSecs?: number;
-	moodTags?: string[];
-	sentimentMin?: number;
-	sentimentMax?: number;
-	language?: string;
+interface UpdateTrackInput {
+	trackName?: string;
+	albumName?: string;
 	popularity?: number;
+	isExplicit?: boolean;
+	durationMs?: number;
+	danceability?: number;
+	energy?: number;
+	key?: number;
+	loudness?: number;
+	speechiness?: number;
+	acousticness?: number;
+	instrumentalness?: number;
+	liveness?: number;
+	valence?: number;
+	tempo?: number;
+	lyrics?: string;
 	artistIds?: string[];
 	genreIds?: string[];
 }
 
-interface ListSongsQuery {
+interface ListTracksQuery {
 	page: number;
 	limit: number;
 	search?: string;
 	genreId?: string;
-	moodTag?: string;
-	language?: string;
 }
 
 interface ListQuery {
@@ -67,8 +79,8 @@ function handlePrismaError(error: unknown): never {
 	throw error;
 }
 
-function formatSong(
-	song: Prisma.SongGetPayload<{
+function formatTrack(
+	track: Prisma.TrackGetPayload<{
 		include: {
 			artists: { include: { artist: true } };
 			genres: { include: { genre: true } };
@@ -76,31 +88,38 @@ function formatSong(
 	}>,
 ) {
 	return {
-		id: song.id,
-		title: song.title,
-		album: song.album,
-		year: song.year,
-		durationSecs: song.durationSecs,
-		moodTags: song.moodTags,
-		sentimentMin: song.sentimentMin,
-		sentimentMax: song.sentimentMax,
-		language: song.language,
-		popularity: song.popularity,
-		createdAt: song.createdAt,
-		updatedAt: song.updatedAt,
-		artists: song.artists.map((sa) => ({
-			id: sa.artist.id,
-			name: sa.artist.name,
-			role: sa.role,
+		id: track.id,
+		trackName: track.trackName,
+		albumName: track.albumName,
+		popularity: track.popularity,
+		isExplicit: track.isExplicit,
+		durationMs: track.durationMs,
+		danceability: track.danceability,
+		energy: track.energy,
+		key: track.key,
+		loudness: track.loudness,
+		speechiness: track.speechiness,
+		acousticness: track.acousticness,
+		instrumentalness: track.instrumentalness,
+		liveness: track.liveness,
+		valence: track.valence,
+		tempo: track.tempo,
+		lyrics: track.lyrics,
+		createdAt: track.createdAt,
+		updatedAt: track.updatedAt,
+		artists: track.artists.map((ta) => ({
+			id: ta.artist.id,
+			name: ta.artist.name,
+			role: ta.role,
 		})),
-		genres: song.genres.map((sg) => ({
-			id: sg.genre.id,
-			name: sg.genre.name,
+		genres: track.genres.map((tg) => ({
+			id: tg.genre.id,
+			name: tg.genre.name,
 		})),
 	};
 }
 
-const songInclude = {
+const trackInclude = {
 	artists: { include: { artist: true } },
 	genres: { include: { genre: true } },
 } as const;
@@ -108,10 +127,10 @@ const songInclude = {
 // ── Service ────────────────────────────────────────────────────────────────────
 
 export const adminMusicService = {
-	// ── Songs ──────────────────────────────────────────────────────────────
+	// ── Tracks ─────────────────────────────────────────────────────────────
 
-	async createSong(data: CreateSongInput) {
-		const { artistIds, genreIds, ...songData } = data;
+	async createTrack(data: CreateTrackInput) {
+		const { artistIds, genreIds, ...trackData } = data;
 
 		// Verify all artistIds exist
 		const artists = await prisma.artist.findMany({
@@ -133,11 +152,10 @@ export const adminMusicService = {
 			}
 		}
 
-		const song = await prisma.$transaction(async (tx) => {
-			const created = await tx.song.create({
+		const track = await prisma.$transaction(async (tx) => {
+			const created = await tx.track.create({
 				data: {
-					...songData,
-					popularity: songData.popularity ?? 0,
+					...trackData,
 					artists: {
 						create: artistIds.map((artistId) => ({ artistId })),
 					},
@@ -145,43 +163,41 @@ export const adminMusicService = {
 						create: genreIds.map((genreId) => ({ genreId })),
 					},
 				},
-				include: songInclude,
+				include: trackInclude,
 			});
 			return created;
 		});
 
-		return formatSong(song);
+		return formatTrack(track);
 	},
 
-	async listSongs(query: ListSongsQuery) {
-		const { page, limit, search, genreId, moodTag, language } = query;
+	async listTracks(query: ListTracksQuery) {
+		const { page, limit, search, genreId } = query;
 		const skip = (page - 1) * limit;
 
-		const where: Prisma.SongWhereInput = {
+		const where: Prisma.TrackWhereInput = {
 			...(search && {
 				OR: [
-					{ title: { contains: search, mode: "insensitive" } },
-					{ album: { contains: search, mode: "insensitive" } },
+					{ trackName: { contains: search, mode: "insensitive" } },
+					{ albumName: { contains: search, mode: "insensitive" } },
 				],
 			}),
-			...(moodTag && { moodTags: { has: moodTag } }),
-			...(language && { language: { equals: language, mode: "insensitive" } }),
 			...(genreId && { genres: { some: { genreId } } }),
 		};
 
-		const [songs, total] = await Promise.all([
-			prisma.song.findMany({
+		const [tracks, total] = await Promise.all([
+			prisma.track.findMany({
 				where,
-				include: songInclude,
+				include: trackInclude,
 				orderBy: { createdAt: "desc" },
 				skip,
 				take: limit,
 			}),
-			prisma.song.count({ where }),
+			prisma.track.count({ where }),
 		]);
 
 		return {
-			songs: songs.map(formatSong),
+			tracks: tracks.map(formatTrack),
 			pagination: {
 				total,
 				page,
@@ -191,21 +207,21 @@ export const adminMusicService = {
 		};
 	},
 
-	async getSong(id: string) {
-		const song = await prisma.song.findUnique({
+	async getTrack(id: string) {
+		const track = await prisma.track.findUnique({
 			where: { id },
-			include: songInclude,
+			include: trackInclude,
 		});
-		if (!song) throw new AppError("Song not found", 404);
-		return formatSong(song);
+		if (!track) throw new AppError("Track not found", 404);
+		return formatTrack(track);
 	},
 
-	async updateSong(id: string, data: UpdateSongInput) {
-		const { artistIds, genreIds, ...songData } = data;
+	async updateTrack(id: string, data: UpdateTrackInput) {
+		const { artistIds, genreIds, ...trackData } = data;
 
 		// Verify exists
-		const existing = await prisma.song.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Song not found", 404);
+		const existing = await prisma.track.findUnique({ where: { id } });
+		if (!existing) throw new AppError("Track not found", 404);
 
 		// Verify artistIds if provided
 		if (artistIds) {
@@ -229,41 +245,41 @@ export const adminMusicService = {
 			}
 		}
 
-		const song = await prisma.$transaction(async (tx) => {
+		const track = await prisma.$transaction(async (tx) => {
 			// Replace artists if provided
 			if (artistIds) {
-				await tx.songArtist.deleteMany({ where: { songId: id } });
-				await tx.songArtist.createMany({
-					data: artistIds.map((artistId) => ({ songId: id, artistId })),
+				await tx.trackArtist.deleteMany({ where: { trackId: id } });
+				await tx.trackArtist.createMany({
+					data: artistIds.map((artistId) => ({ trackId: id, artistId })),
 				});
 			}
 
 			// Replace genres if provided
 			if (genreIds !== undefined) {
-				await tx.songGenre.deleteMany({ where: { songId: id } });
+				await tx.trackGenre.deleteMany({ where: { trackId: id } });
 				if (genreIds.length > 0) {
-					await tx.songGenre.createMany({
-						data: genreIds.map((genreId) => ({ songId: id, genreId })),
+					await tx.trackGenre.createMany({
+						data: genreIds.map((genreId) => ({ trackId: id, genreId })),
 					});
 				}
 			}
 
-			return tx.song.update({
+			return tx.track.update({
 				where: { id },
-				data: songData,
-				include: songInclude,
+				data: trackData,
+				include: trackInclude,
 			});
 		});
 
-		return formatSong(song);
+		return formatTrack(track);
 	},
 
-	async deleteSong(id: string) {
-		const existing = await prisma.song.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Song not found", 404);
+	async deleteTrack(id: string) {
+		const existing = await prisma.track.findUnique({ where: { id } });
+		if (!existing) throw new AppError("Track not found", 404);
 
 		try {
-			await prisma.song.delete({ where: { id } });
+			await prisma.track.delete({ where: { id } });
 		} catch (error) {
 			handlePrismaError(error);
 		}
@@ -294,7 +310,7 @@ export const adminMusicService = {
 				orderBy: { name: "asc" },
 				skip,
 				take: limit,
-				include: { _count: { select: { songs: true } } },
+				include: { _count: { select: { tracks: true } } },
 			}),
 			prisma.artist.count({ where }),
 		]);
@@ -303,7 +319,7 @@ export const adminMusicService = {
 			artists: artists.map((a) => ({
 				id: a.id,
 				name: a.name,
-				songCount: a._count.songs,
+				trackCount: a._count.tracks,
 				createdAt: a.createdAt,
 				updatedAt: a.updatedAt,
 			})),
@@ -319,13 +335,13 @@ export const adminMusicService = {
 	async getArtist(id: string) {
 		const artist = await prisma.artist.findUnique({
 			where: { id },
-			include: { _count: { select: { songs: true } } },
+			include: { _count: { select: { tracks: true } } },
 		});
 		if (!artist) throw new AppError("Artist not found", 404);
 		return {
 			id: artist.id,
 			name: artist.name,
-			songCount: artist._count.songs,
+			trackCount: artist._count.tracks,
 			createdAt: artist.createdAt,
 			updatedAt: artist.updatedAt,
 		};
@@ -375,7 +391,7 @@ export const adminMusicService = {
 				orderBy: { name: "asc" },
 				skip,
 				take: limit,
-				include: { _count: { select: { songs: true } } },
+				include: { _count: { select: { tracks: true } } },
 			}),
 			prisma.genre.count({ where }),
 		]);
@@ -384,7 +400,7 @@ export const adminMusicService = {
 			genres: genres.map((g) => ({
 				id: g.id,
 				name: g.name,
-				songCount: g._count.songs,
+				trackCount: g._count.tracks,
 			})),
 			pagination: {
 				total,
@@ -398,10 +414,10 @@ export const adminMusicService = {
 	async getGenre(id: string) {
 		const genre = await prisma.genre.findUnique({
 			where: { id },
-			include: { _count: { select: { songs: true } } },
+			include: { _count: { select: { tracks: true } } },
 		});
 		if (!genre) throw new AppError("Genre not found", 404);
-		return { id: genre.id, name: genre.name, songCount: genre._count.songs };
+		return { id: genre.id, name: genre.name, trackCount: genre._count.tracks };
 	},
 
 	async updateGenre(id: string, data: { name: string }) {
@@ -427,26 +443,18 @@ export const adminMusicService = {
 	// ── Stats ──────────────────────────────────────────────────────────────
 
 	async getMusicStats() {
-		const [songCount, artistCount, genreCount, topGenresRaw, topMoodTagsRaw] =
+		const [trackCount, artistCount, genreCount, topGenresRaw] =
 			await Promise.all([
-				prisma.song.count(),
+				prisma.track.count(),
 				prisma.artist.count(),
 				prisma.genre.count(),
-				// Top genres by song count
-				prisma.songGenre.groupBy({
+				// Top genres by track count
+				prisma.trackGenre.groupBy({
 					by: ["genreId"],
-					_count: { songId: true },
-					orderBy: { _count: { songId: "desc" } },
+					_count: { trackId: true },
+					orderBy: { _count: { trackId: "desc" } },
 					take: 10,
 				}),
-				// Top mood tags via raw SQL (PostgreSQL unnest on array column)
-				prisma.$queryRaw<{ tag: string; count: bigint }[]>`
-					SELECT unnest(mood_tags) AS tag, COUNT(*) AS count
-					FROM songs
-					GROUP BY tag
-					ORDER BY count DESC
-					LIMIT 10
-				`,
 			]);
 
 		// Resolve genre names
@@ -460,18 +468,12 @@ export const adminMusicService = {
 		const topGenres = topGenresRaw.map((g) => ({
 			genreId: g.genreId,
 			name: genreMap[g.genreId] ?? "Unknown",
-			songCount: g._count.songId,
-		}));
-
-		const topMoodTags = topMoodTagsRaw.map((row) => ({
-			tag: row.tag,
-			count: Number(row.count),
+			trackCount: g._count.trackId,
 		}));
 
 		return {
-			totals: { songs: songCount, artists: artistCount, genres: genreCount },
+			totals: { tracks: trackCount, artists: artistCount, genres: genreCount },
 			topGenres,
-			topMoodTags,
 		};
 	},
 };

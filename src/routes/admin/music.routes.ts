@@ -8,24 +8,24 @@ const router = Router();
 // ── Stats ──────────────────────────────────────────────────────────────────────
 router.get("/stats", adminMusicController.getStats);
 
-// ── Songs ──────────────────────────────────────────────────────────────────────
+// ── Tracks ─────────────────────────────────────────────────────────────────────
 router.post(
-	"/songs",
-	validate(adminMusicValidators.createSong),
-	adminMusicController.createSong,
+	"/tracks",
+	validate(adminMusicValidators.createTrack),
+	adminMusicController.createTrack,
 );
 router.get(
-	"/songs",
-	validate(adminMusicValidators.listSongs),
-	adminMusicController.listSongs,
+	"/tracks",
+	validate(adminMusicValidators.listTracks),
+	adminMusicController.listTracks,
 );
-router.get("/songs/:id", adminMusicController.getSong);
-router.put(
-	"/songs/:id",
-	validate(adminMusicValidators.updateSong),
-	adminMusicController.updateSong,
+router.get("/tracks/:id", adminMusicController.getTrack);
+router.patch(
+	"/tracks/:id",
+	validate(adminMusicValidators.updateTrack),
+	adminMusicController.updateTrack,
 );
-router.delete("/songs/:id", adminMusicController.deleteSong);
+router.delete("/tracks/:id", adminMusicController.deleteTrack);
 
 // ── Artists ────────────────────────────────────────────────────────────────────
 router.post(

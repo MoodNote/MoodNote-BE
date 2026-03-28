@@ -15,80 +15,83 @@ const handleError = (error: unknown, res: Response, fallback: string) => {
 };
 
 export const adminMusicController = {
-	// ── Songs ──────────────────────────────────────────────────────────────
+	// ── Tracks ─────────────────────────────────────────────────────────────
 
-	async createSong(req: Request, res: Response) {
+	async createTrack(req: Request, res: Response) {
 		try {
-			const song = await adminMusicService.createSong(req.body);
+			const track = await adminMusicService.createTrack(req.body);
 			res.status(201).json({
 				success: true,
-				message: "Song created successfully",
-				data: { song },
+				message: "Track created successfully",
+				data: { track },
 			});
 		} catch (error) {
-			handleError(error, res, "Failed to create song");
+			handleError(error, res, "Failed to create track");
 		}
 	},
 
-	async listSongs(req: Request, res: Response) {
+	async listTracks(req: Request, res: Response) {
 		try {
-			const { page, limit, search, genreId, moodTag, language } =
-				req.query as Record<string, string | undefined>;
+			const { page, limit, search, genreId } = req.query as Record<
+				string,
+				string | undefined
+			>;
 
-			const result = await adminMusicService.listSongs({
+			const result = await adminMusicService.listTracks({
 				page: page ? parseInt(page, 10) : 1,
 				limit: limit ? parseInt(limit, 10) : 20,
 				search,
 				genreId,
-				moodTag,
-				language,
 			});
 
 			res.status(200).json({
 				success: true,
-				message: "Songs retrieved successfully",
+				message: "Tracks retrieved successfully",
 				data: result,
 			});
 		} catch (error) {
-			handleError(error, res, "Failed to retrieve songs");
+			handleError(error, res, "Failed to retrieve tracks");
 		}
 	},
 
-	async getSong(req: Request, res: Response) {
+	async getTrack(req: Request, res: Response) {
 		try {
-			const song = await adminMusicService.getSong(req.params.id);
+			const track = await adminMusicService.getTrack(req.params.id);
 			res.status(200).json({
 				success: true,
-				message: "Song retrieved successfully",
-				data: { song },
+				message: "Track retrieved successfully",
+				data: { track },
 			});
 		} catch (error) {
-			handleError(error, res, "Failed to retrieve song");
+			handleError(error, res, "Failed to retrieve track");
 		}
 	},
 
-	async updateSong(req: Request, res: Response) {
+	async updateTrack(req: Request, res: Response) {
 		try {
-			const song = await adminMusicService.updateSong(req.params.id, req.body);
+			const track = await adminMusicService.updateTrack(
+				req.params.id,
+				req.body,
+			);
 			res.status(200).json({
 				success: true,
-				message: "Song updated successfully",
-				data: { song },
+				message: "Track updated successfully",
+				data: { track },
 			});
 		} catch (error) {
-			handleError(error, res, "Failed to update song");
+			handleError(error, res, "Failed to update track");
 		}
 	},
 
-	async deleteSong(req: Request, res: Response) {
+	async deleteTrack(req: Request, res: Response) {
 		try {
-			await adminMusicService.deleteSong(req.params.id);
+			await adminMusicService.deleteTrack(req.params.id);
 			res.status(200).json({
 				success: true,
-				message: "Song deleted successfully",
+				message: "Track deleted successfully",
 			});
 		} catch (error) {
-			handleError(error, res, "Failed to delete song");
+			handleError(error, res, "Failed to delete track");
 		}
 	},
 

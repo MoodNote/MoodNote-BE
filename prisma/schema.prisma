@@ -86,7 +86,7 @@ model User {
   userSettings         UserSettings?
   playlists            Playlist[]
   musicRecommendations MusicRecommendation[]
-  songPlays            SongPlay[]
+  trackPlays           TrackPlay[]
 
   @@index([email])
   @@index([username])
@@ -278,7 +278,7 @@ model Artist {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  songs SongArtist[]
+  tracks TrackArtist[]
 
   @@index([name])
   @@map("artists")
@@ -288,64 +288,70 @@ model Genre {
   id   String @id @default(uuid())
   name String @unique
 
-  songs SongGenre[]
+  tracks TrackGenre[]
 
   @@index([name])
   @@map("genres")
 }
 
-model Song {
-  id           String   @id @default(uuid())
-  title        String
-  album        String?
-  year         Int?
-  durationSecs Int?     @map("duration_secs")
-  moodTags     String[] @default([]) @map("mood_tags")
-  sentimentMin Float    @map("sentiment_min")
-  sentimentMax Float    @map("sentiment_max")
-  language     String?
-  popularity   Int      @default(0)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+model Track {
+  id               String   @id @default(uuid())
+  trackName        String   @map("track_name")
+  albumName        String?  @map("album_name")
+  popularity       Int?
+  isExplicit       Boolean  @default(false) @map("is_explicit")
+  durationMs       Int?     @map("duration_ms")
+  danceability     Float?
+  energy           Float?
+  key              Int?
+  loudness         Float?
+  speechiness      Float?
+  acousticness     Float?
+  instrumentalness Float?
+  liveness         Float?
+  valence          Float?
+  tempo            Float?
+  lyrics           String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  artists             SongArtist[]
-  genres              SongGenre[]
-  recommendationSongs RecommendationSong[]
-  playlistSongs       PlaylistSong[]
-  plays               SongPlay[]
+  artists              TrackArtist[]
+  genres               TrackGenre[]
+  recommendationTracks RecommendationTrack[]
+  playlistTracks       PlaylistTrack[]
+  trackPlays           TrackPlay[]
 
-  @@index([sentimentMin, sentimentMax])
-  @@index([moodTags])
-  @@index([language])
   @@index([popularity])
-  @@map("songs")
+  @@index([valence])
+  @@index([energy])
+  @@map("tracks")
 }
 
-model SongArtist {
-  songId   String  @map("song_id")
+model TrackArtist {
+  trackId  String  @map("track_id")
   artistId String  @map("artist_id")
   role     String?
 
-  song   Song   @relation(fields: [songId], references: [id], onDelete: Cascade)
+  track  Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 
-  @@id([songId, artistId])
-  @@index([songId])
+  @@id([trackId, artistId])
+  @@index([trackId])
   @@index([artistId])
-  @@map("song_artists")
+  @@map("track_artists")
 }
 
-model SongGenre {
-  songId  String @map("song_id")
+model TrackGenre {
+  trackId String @map("track_id")
   genreId String @map("genre_id")
 
-  song  Song  @relation(fields: [songId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
   genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
 
-  @@id([songId, genreId])
-  @@index([songId])
+  @@id([trackId, genreId])
+  @@index([trackId])
   @@index([genreId])
-  @@map("song_genres")
+  @@map("track_genres")
 }
 
 // ─────────────────────────────────────────
@@ -360,9 +366,9 @@ model MusicRecommendation {
   generatedAt DateTime           @default(now()) @map("generated_at")
   createdAt   DateTime           @default(now()) @map("created_at")
 
-  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entry MoodEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  songs RecommendationSong[]
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry  MoodEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tracks RecommendationTrack[]
 
   @@unique([entryId, mode])
   @@index([entryId])
@@ -371,18 +377,18 @@ model MusicRecommendation {
   @@map("music_recommendations")
 }
 
-model RecommendationSong {
+model RecommendationTrack {
   recommendationId String @map("recommendation_id")
-  songId           String @map("song_id")
+  trackId          String @map("track_id")
   order            Int
 
   recommendation MusicRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
-  song           Song                @relation(fields: [songId], references: [id], onDelete: Restrict)
+  track          Track               @relation(fields: [trackId], references: [id], onDelete: Restrict)
 
-  @@id([recommendationId, songId])
+  @@id([recommendationId, trackId])
   @@index([recommendationId])
-  @@index([songId])
-  @@map("recommendation_songs")
+  @@index([trackId])
+  @@map("recommendation_tracks")
 }
 
 // ─────────────────────────────────────────
@@ -390,51 +396,51 @@ model RecommendationSong {
 // ─────────────────────────────────────────
 
 model Playlist {
-  id             String      @id @default(uuid())
-  userId         String      @map("user_id")
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
   name           String
   associatedMood EmotionType? @map("associated_mood")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  updatedAt      DateTime    @updatedAt @map("updated_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  songs PlaylistSong[]
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks PlaylistTrack[]
 
   @@index([userId])
   @@map("playlists")
 }
 
-model PlaylistSong {
+model PlaylistTrack {
   playlistId String @map("playlist_id")
-  songId     String @map("song_id")
+  trackId    String @map("track_id")
   order      Int
 
   playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  song     Song     @relation(fields: [songId], references: [id], onDelete: Restrict)
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Restrict)
 
-  @@id([playlistId, songId])
+  @@id([playlistId, trackId])
   @@index([playlistId])
-  @@index([songId])
-  @@map("playlist_songs")
+  @@index([trackId])
+  @@map("playlist_tracks")
 }
 
 // ─────────────────────────────────────────
 // ANALYTICS
 // ─────────────────────────────────────────
 
-model SongPlay {
+model TrackPlay {
   id       String   @id @default(uuid())
   userId   String   @map("user_id")
-  songId   String   @map("song_id")
+  trackId  String   @map("track_id")
   playedAt DateTime @default(now()) @map("played_at")
   context  String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([songId])
+  @@index([trackId])
   @@index([userId, playedAt])
-  @@index([songId, playedAt])
-  @@map("song_plays")
+  @@index([trackId, playedAt])
+  @@map("track_plays")
 }

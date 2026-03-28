@@ -14,64 +14,55 @@ const paginationQuery = {
 	search: z.string().optional(),
 };
 
-const songBodyBase = {
-	title: z.string().min(1, "Title is required").max(200),
-	album: z.string().max(200).optional(),
-	year: z
-		.number()
-		.int()
-		.min(1900)
-		.max(new Date().getFullYear() + 1)
-		.optional(),
-	durationSecs: z.number().int().min(1).optional(),
-	moodTags: z
-		.array(z.string().min(1).max(50))
-		.min(1, "At least one mood tag is required"),
-	sentimentMin: z.number().min(-1.0).max(1.0),
-	sentimentMax: z.number().min(-1.0).max(1.0),
-	language: z.string().max(10).optional(),
-	popularity: z.number().int().min(0).max(100).optional().default(0),
-	artistIds: z.array(z.string().uuid()).min(1, "At least one artist is required"),
+const trackBodyBase = {
+	trackName: z.string().min(1, "Track name is required").max(300),
+	albumName: z.string().max(300).optional(),
+	popularity: z.number().int().min(0).max(100).optional(),
+	isExplicit: z.boolean().optional().default(false),
+	durationMs: z.number().int().min(1).optional(),
+	danceability: z.number().min(0).max(1).optional(),
+	energy: z.number().min(0).max(1).optional(),
+	key: z.number().int().min(0).max(11).optional(),
+	loudness: z.number().optional(),
+	speechiness: z.number().min(0).max(1).optional(),
+	acousticness: z.number().min(0).max(1).optional(),
+	instrumentalness: z.number().min(0).max(1).optional(),
+	liveness: z.number().min(0).max(1).optional(),
+	valence: z.number().min(0).max(1).optional(),
+	tempo: z.number().optional(),
+	lyrics: z.string().optional(),
+	artistIds: z
+		.array(z.string().uuid())
+		.min(1, "At least one artist is required"),
 	genreIds: z.array(z.string().uuid()).default([]),
 };
 
 export const adminMusicValidators = {
-	// ── Songs ──────────────────────────────────────────────────────
+	// ── Tracks ─────────────────────────────────────────────────────────
 
-	createSong: z.object({
-		body: z
-			.object(songBodyBase)
-			.superRefine((data, ctx) => {
-				if (data.sentimentMin >= data.sentimentMax) {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: "sentimentMin must be less than sentimentMax",
-						path: ["sentimentMin"],
-					});
-				}
-			}),
+	createTrack: z.object({
+		body: z.object(trackBodyBase),
 	}),
 
-	updateSong: z.object({
+	updateTrack: z.object({
 		body: z
 			.object({
-				title: z.string().min(1).max(200).optional(),
-				album: z.string().max(200).optional(),
-				year: z
-					.number()
-					.int()
-					.min(1900)
-					.max(new Date().getFullYear() + 1)
-					.optional(),
-				durationSecs: z.number().int().min(1).optional(),
-				moodTags: z
-					.array(z.string().min(1).max(50))
-					.min(1, "At least one mood tag is required")
-					.optional(),
-				sentimentMin: z.number().min(-1.0).max(1.0).optional(),
-				sentimentMax: z.number().min(-1.0).max(1.0).optional(),
-				language: z.string().max(10).optional(),
+				trackName: z.string().min(1).max(300).optional(),
+				albumName: z.string().max(300).optional(),
 				popularity: z.number().int().min(0).max(100).optional(),
+				isExplicit: z.boolean().optional(),
+				durationMs: z.number().int().min(1).optional(),
+				danceability: z.number().min(0).max(1).optional(),
+				energy: z.number().min(0).max(1).optional(),
+				key: z.number().int().min(0).max(11).optional(),
+				loudness: z.number().optional(),
+				speechiness: z.number().min(0).max(1).optional(),
+				acousticness: z.number().min(0).max(1).optional(),
+				instrumentalness: z.number().min(0).max(1).optional(),
+				liveness: z.number().min(0).max(1).optional(),
+				valence: z.number().min(0).max(1).optional(),
+				tempo: z.number().optional(),
+				lyrics: z.string().optional(),
 				artistIds: z
 					.array(z.string().uuid())
 					.min(1, "At least one artist is required")
@@ -85,30 +76,17 @@ export const adminMusicValidators = {
 						message: "No fields to update",
 					});
 				}
-				if (
-					data.sentimentMin !== undefined &&
-					data.sentimentMax !== undefined &&
-					data.sentimentMin >= data.sentimentMax
-				) {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: "sentimentMin must be less than sentimentMax",
-						path: ["sentimentMin"],
-					});
-				}
 			}),
 	}),
 
-	listSongs: z.object({
+	listTracks: z.object({
 		query: z.object({
 			...paginationQuery,
 			genreId: z.string().uuid().optional(),
-			moodTag: z.string().optional(),
-			language: z.string().optional(),
 		}),
 	}),
 
-	// ── Artists ────────────────────────────────────────────────────
+	// ── Artists ────────────────────────────────────────────────────────
 
 	createArtist: z.object({
 		body: z.object({
@@ -126,7 +104,7 @@ export const adminMusicValidators = {
 		query: z.object({ ...paginationQuery }),
 	}),
 
-	// ── Genres ─────────────────────────────────────────────────────
+	// ── Genres ─────────────────────────────────────────────────────────
 
 	createGenre: z.object({
 		body: z.object({
