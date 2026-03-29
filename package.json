@@ -14,7 +14,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "prisma:reset": "ts-node prisma/reset.ts"
+    "prisma:reset": "ts-node prisma/reset.ts",
+    "prisma:seed-music": "ts-node prisma/seedMusic.ts"
   },
   "keywords": [],
   "dependencies": {
