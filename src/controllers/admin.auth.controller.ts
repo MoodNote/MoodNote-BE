@@ -21,4 +21,37 @@ export const adminAuthController = {
 			});
 		}
 	},
+
+	async adminRefreshToken(req: Request, res: Response) {
+		try {
+			const { refreshToken } = req.body as { refreshToken: string };
+			const result = await adminAuthService.refreshAdminToken(refreshToken);
+			res.status(200).json({
+				success: true,
+				message: "Token refreshed",
+				data: result,
+			});
+		} catch (error: any) {
+			res.status(401).json({
+				success: false,
+				message: error.message || "Failed to refresh token",
+			});
+		}
+	},
+
+	async adminLogout(req: Request, res: Response) {
+		try {
+			const { refreshToken } = req.body as { refreshToken: string };
+			await adminAuthService.adminLogout(refreshToken);
+			res.status(200).json({
+				success: true,
+				message: "Admin logout successful",
+			});
+		} catch (error: any) {
+			res.status(400).json({
+				success: false,
+				message: error.message || "Logout failed",
+			});
+		}
+	},
 };

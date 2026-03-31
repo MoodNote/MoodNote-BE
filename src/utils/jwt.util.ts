@@ -72,6 +72,27 @@ export const jwtUtil = {
   },
 
   /**
+   * Generate admin refresh token (7 days, separate secret from admin access token)
+   */
+  generateAdminRefreshToken(userId: string, email: string): string {
+    const payload: JwtPayload = {
+      userId,
+      email,
+      type: 'refresh',
+    };
+    return jwt.sign(payload, authConfig.jwt.adminRefreshSecret, {
+      expiresIn: authConfig.jwt.adminRefreshExpiresIn as jwt.SignOptions['expiresIn'],
+    });
+  },
+
+  /**
+   * Verify admin refresh token (uses admin refresh secret)
+   */
+  verifyAdminRefreshToken(token: string): JwtPayload {
+    return jwt.verify(token, authConfig.jwt.adminRefreshSecret) as JwtPayload;
+  },
+
+  /**
    * Decode token without verification (for debugging)
    */
   decode(token: string): JwtPayload | null {

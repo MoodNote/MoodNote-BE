@@ -12,6 +12,17 @@ export const authConfig = {
 			process.env.ADMIN_JWT_SECRET ||
 			"default-admin-secret-change-in-production",
 		adminExpiresIn: process.env.ADMIN_JWT_EXPIRES_IN || "1h",
+		adminRefreshSecret:
+			process.env.ADMIN_REFRESH_TOKEN_SECRET ||
+			"default-admin-refresh-secret-change-in-production",
+		adminRefreshExpiresIn: process.env.ADMIN_REFRESH_TOKEN_EXPIRES_IN || "7d",
+		// Derived from adminRefreshExpiresIn — assumes "Xd" (days) format
+		adminRefreshExpiresInMs:
+			parseInt(process.env.ADMIN_REFRESH_TOKEN_EXPIRES_IN || "7") *
+			24 *
+			60 *
+			60 *
+			1000,
 	},
 	bcrypt: {
 		saltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS || "12"),

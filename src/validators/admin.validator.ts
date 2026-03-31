@@ -46,6 +46,37 @@ export const adminValidators = {
 		}),
 	}),
 
+	getUserDetail: z.object({
+		params: z.object({
+			id: z.string().uuid("User ID must be a valid UUID"),
+		}),
+	}),
+
+	updateUserStatus: z.object({
+		params: z.object({
+			id: z.string().uuid("User ID must be a valid UUID"),
+		}),
+		body: z.object({
+			isActive: z.boolean(),
+			reason: z
+				.string()
+				.max(500, "Reason must be at most 500 characters")
+				.optional(),
+		}),
+	}),
+
+	adminRefresh: z.object({
+		body: z.object({
+			refreshToken: z.string().min(1, "Refresh token is required"),
+		}),
+	}),
+
+	adminLogout: z.object({
+		body: z.object({
+			refreshToken: z.string().min(1, "Refresh token is required"),
+		}),
+	}),
+
 	listUsers: z.object({
 		query: z.object({
 			page: z

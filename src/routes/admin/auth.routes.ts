@@ -13,4 +13,18 @@ router.post(
 	adminAuthController.adminLogin,
 );
 
+router.post(
+	"/refresh",
+	authRateLimiter,
+	validate(adminValidators.adminRefresh),
+	adminAuthController.adminRefreshToken,
+);
+
+router.post(
+	"/logout",
+	authRateLimiter,
+	validate(adminValidators.adminLogout),
+	adminAuthController.adminLogout,
+);
+
 export default router;

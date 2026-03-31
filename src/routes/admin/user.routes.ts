@@ -11,4 +11,16 @@ router.get(
 	adminUserController.listUsers,
 );
 
+router.get(
+	"/:id",
+	validate(adminValidators.getUserDetail),
+	adminUserController.getUserDetail,
+);
+
+router.patch(
+	"/:id/status",
+	validate(adminValidators.updateUserStatus),
+	adminUserController.updateUserStatus,
+);
+
 export default router;
