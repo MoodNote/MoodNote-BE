@@ -211,10 +211,12 @@ model DeviceToken {
 // JOURNAL
 // ─────────────────────────────────────────
 
+// Note: there is no separate `title` column. Title is embedded inside the
+// encrypted JSON payload (see EntryPayload in entry.service.ts).
 model MoodEntry {
   id               String         @id @default(uuid())
   userId           String
-  encryptedContent String         @db.Text
+  encryptedContent String         @db.Text // JSON: { title, content (Quill Delta) }, AES-256-CBC encrypted
   contentIv        String
   wordCount        Int            @default(0)
   entryDate        DateTime

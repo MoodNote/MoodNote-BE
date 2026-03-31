@@ -6,7 +6,7 @@ export const userController = {
 		try {
 			const userId = req.user!.userId;
 			const profile = await userService.getProfile(userId);
-			res.status(200).json({ success: true, data: profile });
+			res.status(200).json({ success: true, message: "Profile retrieved successfully", data: profile });
 		} catch (error) {
 			res
 				.status(404)

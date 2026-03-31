@@ -44,3 +44,17 @@ export const loginRateLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 });
+
+/**
+ * Broadcast rate limiter: 10 requests per minute per IP (admin only)
+ */
+export const broadcastRateLimiter = rateLimit({
+	windowMs: 60 * 1000, // 1 minute
+	max: 10,
+	message: {
+		success: false,
+		message: "Too many broadcast requests, please try again later",
+	},
+	standardHeaders: true,
+	legacyHeaders: false,
+});

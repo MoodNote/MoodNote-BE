@@ -14,6 +14,8 @@ interface Delta {
 	ops: DeltaOp[];
 }
 
+// title is NOT a separate DB column — it is stored inside encryptedContent
+// alongside the Quill Delta, so it benefits from the same field-level encryption.
 interface EntryPayload {
 	title: string | null;
 	content: Delta;
