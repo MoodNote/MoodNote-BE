@@ -244,30 +244,17 @@ model EmotionAnalysis {
   primaryEmotion EmotionType @map("primary_emotion")
   sentimentScore Float       @map("sentiment_score")
   intensity      Int
+  keywords       String[]    @default([])
   modelVersion   String?     @map("model_version")
   analyzedAt     DateTime    @default(now()) @map("analyzed_at")
   createdAt      DateTime    @default(now()) @map("created_at")
 
-  entry    MoodEntry      @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  keywords EntryKeyword[]
+  entry MoodEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId])
   @@index([primaryEmotion])
   @@index([sentimentScore])
   @@map("emotion_analyses")
-}
-
-model EntryKeyword {
-  id         String  @id @default(uuid())
-  analysisId String  @map("analysis_id")
-  keyword    String
-  relevance  Float
-
-  analysis EmotionAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-
-  @@index([analysisId])
-  @@index([keyword])
-  @@map("entry_keywords")
 }
 
 // ─────────────────────────────────────────
