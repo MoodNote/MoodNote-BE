@@ -37,12 +37,13 @@ enum AnalysisStatus {
 }
 
 enum EmotionType {
-  HAPPY
-  SAD
-  ANGRY
-  ANXIOUS
-  FEARFUL
-  NEUTRAL
+  Enjoyment
+  Sadness
+  Anger
+  Fear
+  Disgust
+  Surprise
+  Other
 }
 
 enum RecommendationMode {
@@ -239,15 +240,17 @@ model MoodEntry {
 }
 
 model EmotionAnalysis {
-  id             String      @id @default(uuid())
-  entryId        String      @unique @map("entry_id")
-  primaryEmotion EmotionType @map("primary_emotion")
-  sentimentScore Float       @map("sentiment_score")
-  intensity      Int
-  keywords       String[]    @default([])
-  modelVersion   String?     @map("model_version")
-  analyzedAt     DateTime    @default(now()) @map("analyzed_at")
-  createdAt      DateTime    @default(now()) @map("created_at")
+  id                  String      @id @default(uuid())
+  entryId             String      @unique @map("entry_id")
+  primaryEmotion      EmotionType @map("primary_emotion")
+  sentimentScore      Float       @map("sentiment_score")
+  intensity           Float
+  confidence          Float?      @map("confidence")
+  emotionDistribution Json?       @map("emotion_distribution")
+  keywords            String[]    @default([])
+  modelVersion        String?     @map("model_version")
+  analyzedAt          DateTime    @default(now()) @map("analyzed_at")
+  createdAt           DateTime    @default(now()) @map("created_at")
 
   entry MoodEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
