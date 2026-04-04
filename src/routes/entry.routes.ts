@@ -3,6 +3,7 @@ import { authenticate } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import { generalRateLimiter } from "../middlewares/rateLimit.middleware";
 import { entryController } from "../controllers/entry.controller";
+import { analysisController } from "../controllers/analysis.controller";
 import { entryValidators } from "../validators/entry.validator";
 
 const router = Router();
@@ -25,6 +26,7 @@ router.post(
 	validate(entryValidators.bulkDeleteEntries),
 	entryController.bulkDeleteEntries,
 );
+router.post("/:id/analyze", analysisController.triggerAnalysis);
 router.get("/:id", entryController.getEntry);
 router.patch(
 	"/:id",

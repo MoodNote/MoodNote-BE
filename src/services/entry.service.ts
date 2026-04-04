@@ -2,6 +2,7 @@ import prisma from "../config/database";
 import { encrypt, decrypt } from "../utils/encryption.util";
 import { AppError } from "../utils/app-error.util";
 import { Prisma } from "@prisma/client";
+import { analysisService } from "./analysis.service";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 
@@ -38,6 +39,7 @@ function formatEntryResponse(
 	payload: EntryPayload,
 	includeFullContent: boolean,
 	preview?: string,
+	emotionAnalysis?: Prisma.EmotionAnalysisGetPayload<object> | null,
 ) {
 	const base = {
 		id: entry.id,
@@ -50,6 +52,7 @@ function formatEntryResponse(
 		analysisStatus: entry.analysisStatus,
 		createdAt: entry.createdAt,
 		updatedAt: entry.updatedAt,
+		emotionAnalysis: emotionAnalysis ?? null,
 	};
 
 	if (includeFullContent) {
@@ -113,6 +116,13 @@ export const entryService = {
 				analysisStatus: "PENDING",
 			},
 		});
+
+		// Fire-and-forget AI analysis — response is not blocked
+		analysisService
+			.runAnalysis(entry.id)
+			.catch((err) =>
+				console.error("[Entry] Failed to start analysis:", err),
+			);
 
 		return formatEntryResponse(entry, payload, true);
 	},
@@ -206,6 +216,7 @@ export const entryService = {
 	async getEntry(userId: string, entryId: string) {
 		const entry = await prisma.moodEntry.findUnique({
 			where: { id: entryId },
+			include: { emotionAnalysis: true },
 		});
 
 		if (!entry) {
@@ -223,7 +234,13 @@ export const entryService = {
 		);
 		const payload: EntryPayload = JSON.parse(decrypted);
 
-		return formatEntryResponse(entry, payload, true);
+		return formatEntryResponse(
+			entry,
+			payload,
+			true,
+			undefined,
+			entry.emotionAnalysis,
+		);
 	},
 
 	async updateEntry(
@@ -307,6 +324,15 @@ export const entryService = {
 				? [prisma.emotionAnalysis.deleteMany({ where: { entryId } })]
 				: []),
 		]);
+
+		// Fire-and-forget re-analysis when content changed
+		if (contentChanged) {
+			analysisService
+				.runAnalysis(updated.id)
+				.catch((err) =>
+					console.error("[Entry] Failed to restart analysis:", err),
+				);
+		}
 
 		const decrypted = decrypt(
 			updated.encryptedContent,
