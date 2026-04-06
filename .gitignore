@@ -50,3 +50,7 @@ src/config/serviceAccountKey.json
 
 #UML
 *.plantuml
+
+
+PNG
+*.png

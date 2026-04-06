@@ -132,6 +132,8 @@ async function runAnalysis(entryId: string): Promise<void> {
         where: { id: entryId },
         data: { analysisStatus: "COMPLETED" },
       }),
+      // Clear cached music recommendations so they regenerate from the new analysis
+      prisma.musicRecommendation.deleteMany({ where: { entryId } }),
     ]);
   } catch (err: unknown) {
     console.error(
