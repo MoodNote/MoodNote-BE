@@ -88,10 +88,18 @@ copy .env.example .env
 npm run prisma:migrate
 ```
 
-5. (Tuỳ chọn) Seed dữ liệu
+5. Seed dữ liệu cơ bản
 
 ```bash
 npm run prisma:seed
+```
+
+Lệnh này sẽ tạo admin, vài user demo, `UserSettings`, và một bộ `MoodEntry` mẫu đã được mã hóa đúng format của hệ thống.
+
+Nếu muốn nạp thêm dữ liệu nhạc, chạy riêng:
+
+```bash
+npm run prisma:seed-music
 ```
 
 6. Chạy server dev
@@ -109,7 +117,7 @@ Mặc định server chạy tại `http://localhost:3000`.
 - `npm run start`: chạy bản build production
 - `npm run prisma:migrate`: tạo/apply migration
 - `npm run prisma:studio`: mở Prisma Studio
-- `npm run prisma:seed`: seed dữ liệu
+- `npm run prisma:seed`: seed dữ liệu cơ bản gồm admin, user demo, settings, và entries
 - `npm run prisma:reset`: reset dữ liệu (destructive, dùng cẩn thận)
 
 ### 6) Cấu hình môi trường
