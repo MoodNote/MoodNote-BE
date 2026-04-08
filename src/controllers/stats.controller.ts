@@ -1,0 +1,78 @@
+import { Request, Response } from "express";
+import { statsService } from "../services/stats.service";
+
+export const statsController = {
+	/**
+	 * GET /api/stats/emotion-chart
+	 * FR-18: Sentiment score trend over time.
+	 */
+	async getEmotionChart(req: Request, res: Response) {
+		try {
+			const data = await statsService.getEmotionChart(req.user!.userId, {
+				range: req.query.range as string | undefined,
+				startDate: req.query.startDate as string | undefined,
+				endDate: req.query.endDate as string | undefined,
+			});
+			res.status(200).json({
+				success: true,
+				message: "Emotion chart data retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message:
+					error instanceof Error ? error.message : "Failed to retrieve emotion chart",
+			});
+		}
+	},
+
+	/**
+	 * GET /api/stats/keywords
+	 * FR-19: Top keywords by frequency.
+	 */
+	async getKeywords(req: Request, res: Response) {
+		try {
+			const data = await statsService.getKeywords(req.user!.userId, {
+				range: req.query.range as string | undefined,
+				startDate: req.query.startDate as string | undefined,
+				endDate: req.query.endDate as string | undefined,
+				limit: req.query.limit ? Number(req.query.limit) : undefined,
+			});
+			res.status(200).json({
+				success: true,
+				message: "Keywords retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message:
+					error instanceof Error ? error.message : "Failed to retrieve keywords",
+			});
+		}
+	},
+
+	/**
+	 * GET /api/stats/patterns
+	 * FR-20: Emotion frequency by day of week and time of day (simplified).
+	 */
+	async getPatterns(req: Request, res: Response) {
+		try {
+			const data = await statsService.getPatterns(req.user!.userId, {
+				range: req.query.range as string | undefined,
+			});
+			res.status(200).json({
+				success: true,
+				message: "Patterns retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message:
+					error instanceof Error ? error.message : "Failed to retrieve patterns",
+			});
+		}
+	},
+};

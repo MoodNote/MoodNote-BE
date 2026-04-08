@@ -6,6 +6,7 @@ import adminUserRoutes from "./admin/user.routes";
 import adminMusicRoutes from "./admin/music.routes";
 import adminHealthRoutes from "./admin/health.routes";
 import adminAiRoutes from "./admin/ai.routes";
+import adminStatsRoutes from "./admin/stats.routes";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ adminProtected.use("/notifications", adminNotificationRoutes);
 adminProtected.use("/users", adminUserRoutes);
 adminProtected.use("/music", adminMusicRoutes);
 adminProtected.use("/ai", adminAiRoutes);
+adminProtected.use("/stats", adminStatsRoutes);
 
 router.use(adminProtected);
 
