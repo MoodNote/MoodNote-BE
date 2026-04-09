@@ -53,4 +53,24 @@ export const statsValidators = {
 			limit: z.coerce.number().int().min(1).max(20).optional().default(10),
 		}),
 	}),
+
+	summary: z.object({
+		query: z.object({}),
+	}),
+
+	weekly: z.object({
+		query: z.object({
+			startDate: z
+				.string()
+				.regex(/^\d{4}-\d{2}-\d{2}$/, "startDate must be YYYY-MM-DD")
+				.optional(),
+		}),
+	}),
+
+	monthlyCalendar: z.object({
+		query: z.object({
+			year: z.coerce.number().int().min(2020).max(2030),
+			month: z.coerce.number().int().min(1).max(12),
+		}),
+	}),
 };

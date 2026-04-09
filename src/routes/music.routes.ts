@@ -11,6 +11,12 @@ router.use(generalRateLimiter);
 router.use(authenticate);
 
 router.get(
+	"/recent",
+	validate(musicValidators.recentRecommendation),
+	musicController.getRecentRecommendation,
+);
+
+router.get(
 	"/entries/:entryId/recommendation",
 	validate(musicValidators.getRecommendation),
 	musicController.getRecommendation,

@@ -54,4 +54,24 @@ export const musicController = {
 			handleError(error, res, "Failed to refresh recommendation");
 		}
 	},
+
+	/**
+	 * GET /api/music/recent
+	 * Returns the most recent recommendation with limited tracks (for home screen).
+	 */
+	async getRecentRecommendation(req: Request, res: Response) {
+		try {
+			const data = await musicService.getRecentRecommendation(
+				req.user!.userId,
+				Number(req.query.limit) || 5,
+			);
+			res.status(200).json({
+				success: true,
+				message: "Recent recommendation retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve recent recommendation");
+		}
+	},
 };

@@ -308,4 +308,205 @@ export async function getPatterns(
 	};
 }
 
-export const statsService = { getEmotionChart, getKeywords, getPatterns };
+// ─────────────────────────────────────────
+// Home: Summary (streaks)
+// ─────────────────────────────────────────
+
+const VN_DAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"] as const;
+
+export async function getSummary(userId: string) {
+	const entries = await prisma.moodEntry.findMany({
+		where: { userId },
+		select: {
+			entryDate: true,
+			analysisStatus: true,
+			emotionAnalysis: { select: { primaryEmotion: true } },
+		},
+		orderBy: { entryDate: "desc" },
+	});
+
+	// Build per-date maps
+	const writingDates = new Set<string>();
+	const emotionByDate = new Map<string, string>();
+
+	for (const entry of entries) {
+		const dateStr = entry.entryDate.toISOString().split("T")[0];
+		writingDates.add(dateStr);
+		if (
+			!emotionByDate.has(dateStr) &&
+			entry.analysisStatus === "COMPLETED" &&
+			entry.emotionAnalysis
+		) {
+			emotionByDate.set(dateStr, entry.emotionAnalysis.primaryEmotion);
+		}
+	}
+
+	// Count consecutive days going backwards from today
+	function countStreak(predicate: (dateStr: string) => boolean): number {
+		let streak = 0;
+		const cursor = new Date();
+		cursor.setUTCHours(0, 0, 0, 0);
+		while (true) {
+			const dateStr = cursor.toISOString().split("T")[0];
+			if (predicate(dateStr)) {
+				streak++;
+				cursor.setUTCDate(cursor.getUTCDate() - 1);
+			} else {
+				break;
+			}
+		}
+		return streak;
+	}
+
+	return {
+		writingStreak: countStreak((d) => writingDates.has(d)),
+		smileStreak: countStreak((d) => emotionByDate.get(d) === "Enjoyment"),
+		sadStreak: countStreak((d) => emotionByDate.get(d) === "Sadness"),
+	};
+}
+
+// ─────────────────────────────────────────
+// Báo cáo: Weekly emotion chart
+// ─────────────────────────────────────────
+
+export async function getWeeklyChart(
+	userId: string,
+	params: { startDate?: string },
+) {
+	let start: Date;
+	if (params.startDate) {
+		start = new Date(params.startDate + "T00:00:00.000Z");
+	} else {
+		start = new Date();
+		start.setUTCHours(0, 0, 0, 0);
+		// Go back to Monday (UTC: 0=Sun, 1=Mon, ..., 6=Sat)
+		const day = start.getUTCDay();
+		const daysFromMonday = day === 0 ? 6 : day - 1;
+		start.setUTCDate(start.getUTCDate() - daysFromMonday);
+	}
+
+	const end = new Date(start);
+	end.setUTCDate(start.getUTCDate() + 6);
+	end.setUTCHours(23, 59, 59, 999);
+
+	const entries = await prisma.moodEntry.findMany({
+		where: {
+			userId,
+			entryDate: { gte: start, lte: end },
+			analysisStatus: "COMPLETED",
+			emotionAnalysis: { isNot: null },
+		},
+		select: {
+			entryDate: true,
+			createdAt: true,
+			emotionAnalysis: {
+				select: { primaryEmotion: true, sentimentScore: true },
+			},
+		},
+		orderBy: { createdAt: "desc" },
+	});
+
+	// Keep only the latest entry per date
+	const byDate = new Map<string, { emotion: string; sentimentScore: number }>();
+	for (const entry of entries) {
+		const dateStr = entry.entryDate.toISOString().split("T")[0];
+		if (!byDate.has(dateStr)) {
+			byDate.set(dateStr, {
+				emotion: entry.emotionAnalysis!.primaryEmotion,
+				sentimentScore: entry.emotionAnalysis!.sentimentScore,
+			});
+		}
+	}
+
+	const days = Array.from({ length: 7 }, (_, i) => {
+		const day = new Date(start);
+		day.setUTCDate(start.getUTCDate() + i);
+		const dateStr = day.toISOString().split("T")[0];
+		const data = byDate.get(dateStr);
+		return {
+			date: dateStr,
+			dayLabel: VN_DAY_LABELS[day.getUTCDay()],
+			emotion: data?.emotion ?? null,
+			sentimentScore: data?.sentimentScore ?? null,
+			hasEntry: !!data,
+		};
+	});
+
+	const startD = start.getUTCDate();
+	const startM = start.getUTCMonth() + 1;
+	const endD = end.getUTCDate();
+	const endM = end.getUTCMonth() + 1;
+	const weekLabel = `${startD}/${startM} - ${endD}/${endM}`;
+
+	return {
+		weekLabel,
+		startDate: start.toISOString().split("T")[0],
+		endDate: end.toISOString().split("T")[0],
+		days,
+	};
+}
+
+// ─────────────────────────────────────────
+// Báo cáo: Monthly calendar
+// ─────────────────────────────────────────
+
+export async function getMonthlyCalendar(
+	userId: string,
+	params: { year: number; month: number },
+) {
+	const { year, month } = params;
+
+	const now = new Date();
+	const currentYear = now.getUTCFullYear();
+	const currentMonth = now.getUTCMonth() + 1;
+	if (year > currentYear || (year === currentYear && month > currentMonth)) {
+		throw new Error("Cannot retrieve calendar for future months");
+	}
+
+	// new Date(UTC(year, month, 0)) = last day of the month
+	const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+	const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+	const end = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
+
+	const entries = await prisma.moodEntry.findMany({
+		where: {
+			userId,
+			entryDate: { gte: start, lte: end },
+			analysisStatus: "COMPLETED",
+			emotionAnalysis: { isNot: null },
+		},
+		select: {
+			entryDate: true,
+			createdAt: true,
+			emotionAnalysis: { select: { primaryEmotion: true } },
+		},
+		orderBy: { createdAt: "desc" },
+	});
+
+	// Keep only the latest entry per date
+	const byDate = new Map<string, string>();
+	for (const entry of entries) {
+		const dateStr = entry.entryDate.toISOString().split("T")[0];
+		if (!byDate.has(dateStr)) {
+			byDate.set(dateStr, entry.emotionAnalysis!.primaryEmotion);
+		}
+	}
+
+	const days = Array.from({ length: daysInMonth }, (_, i) => {
+		const d = i + 1;
+		const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+		const emotion = byDate.get(dateStr) ?? null;
+		return { date: dateStr, day: d, emotion, hasEntry: !!emotion };
+	});
+
+	return { year, month, daysInMonth, days };
+}
+
+export const statsService = {
+	getEmotionChart,
+	getKeywords,
+	getPatterns,
+	getSummary,
+	getWeeklyChart,
+	getMonthlyCalendar,
+};

@@ -75,4 +75,81 @@ export const statsController = {
 			});
 		}
 	},
+
+	/**
+	 * GET /api/stats/summary
+	 * Home screen streaks: writingStreak, smileStreak, sadStreak.
+	 */
+	async getSummary(req: Request, res: Response) {
+		try {
+			const data = await statsService.getSummary(req.user!.userId);
+			res.status(200).json({
+				success: true,
+				message: "Summary retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message:
+					error instanceof Error ? error.message : "Failed to retrieve summary",
+			});
+		}
+	},
+
+	/**
+	 * GET /api/stats/weekly
+	 * Báo cáo: 7-day emotion chart with Vietnamese day labels.
+	 */
+	async getWeeklyChart(req: Request, res: Response) {
+		try {
+			const data = await statsService.getWeeklyChart(req.user!.userId, {
+				startDate: req.query.startDate as string | undefined,
+			});
+			res.status(200).json({
+				success: true,
+				message: "Weekly chart retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			res.status(500).json({
+				success: false,
+				message:
+					error instanceof Error
+						? error.message
+						: "Failed to retrieve weekly chart",
+			});
+		}
+	},
+
+	/**
+	 * GET /api/stats/monthly-calendar
+	 * Báo cáo: All days in a month with emotion per day.
+	 */
+	async getMonthlyCalendar(req: Request, res: Response) {
+		try {
+			const data = await statsService.getMonthlyCalendar(req.user!.userId, {
+				year: Number(req.query.year),
+				month: Number(req.query.month),
+			});
+			res.status(200).json({
+				success: true,
+				message: "Monthly calendar retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			const status =
+				error instanceof Error &&
+				error.message.includes("future")
+					? 400
+					: 500;
+			res.status(status).json({
+				success: false,
+				message:
+					error instanceof Error
+						? error.message
+						: "Failed to retrieve monthly calendar",
+			});
+		}
+	},
 };

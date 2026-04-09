@@ -173,6 +173,7 @@ export const entryService = {
 				orderBy: { entryDate: "desc" },
 				skip,
 				take: limit,
+				include: { emotionAnalysis: true },
 			}),
 			prisma.moodEntry.count({ where }),
 		]);
@@ -190,7 +191,7 @@ export const entryService = {
 					plainText.length > 30
 						? plainText.slice(0, 30) + "..."
 						: plainText;
-				return formatEntryResponse(entry, payload, false, preview);
+				return formatEntryResponse(entry, payload, false, preview, entry.emotionAnalysis);
 			} catch {
 				// If decryption fails, return entry without content
 				return formatEntryResponse(
@@ -198,6 +199,7 @@ export const entryService = {
 					{ title: null, content: { ops: [] } },
 					false,
 					"",
+					entry.emotionAnalysis,
 				);
 			}
 		});

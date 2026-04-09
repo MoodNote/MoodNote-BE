@@ -28,4 +28,22 @@ router.get(
 	statsController.getPatterns,
 );
 
+router.get(
+	"/summary",
+	validate(statsValidators.summary),
+	statsController.getSummary,
+);
+
+router.get(
+	"/weekly",
+	validate(statsValidators.weekly),
+	statsController.getWeeklyChart,
+);
+
+router.get(
+	"/monthly-calendar",
+	validate(statsValidators.monthlyCalendar),
+	statsController.getMonthlyCalendar,
+);
+
 export default router;

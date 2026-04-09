@@ -9,4 +9,9 @@ const entryIdParam = z.object({
 export const musicValidators = {
 	getRecommendation: entryIdParam,
 	refreshRecommendation: entryIdParam,
+	recentRecommendation: z.object({
+		query: z.object({
+			limit: z.coerce.number().int().min(1).max(10).optional().default(5),
+		}),
+	}),
 };

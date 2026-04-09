@@ -571,7 +571,51 @@ async function refreshRecommendation(userId: string, entryId: string) {
 	return fetchFormattedRecommendation(recommendationId);
 }
 
+async function getRecentRecommendation(userId: string, limit: number) {
+	const rec = await prisma.musicRecommendation.findFirst({
+		where: { userId },
+		orderBy: { generatedAt: "desc" },
+		include: {
+			tracks: {
+				orderBy: { order: "asc" },
+				take: limit,
+				include: {
+					track: {
+						include: {
+							artists: {
+								include: { artist: { select: { name: true } } },
+							},
+						},
+					},
+				},
+			},
+		},
+	});
+
+	if (!rec) return { recommendation: null };
+
+	return {
+		recommendation: {
+			id: rec.id,
+			entryId: rec.entryId,
+			mode: rec.mode,
+			generatedAt: rec.generatedAt,
+			tracks: rec.tracks.map((rt) => ({
+				order: rt.order,
+				track: {
+					id: rt.track.id,
+					trackName: rt.track.trackName,
+					albumName: rt.track.albumName,
+					durationMs: rt.track.durationMs,
+					artists: rt.track.artists.map((ta) => ({ name: ta.artist.name })),
+				},
+			})),
+		},
+	};
+}
+
 export const musicService = {
 	getOrCreateRecommendation,
 	refreshRecommendation,
+	getRecentRecommendation,
 };

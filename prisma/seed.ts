@@ -60,7 +60,10 @@ const seedUsers: SeedUser[] = [adminSeed, ...demoUsers];
 
 const seedEntries: SeedEntry[] = Array.from({ length: 30 }).map((_, index) => {
 	const day = index + 1;
-	const date = `2026-04-${day.toString().padStart(2, "0")}T08:00:00.000Z`;
+	const d = new Date();
+	d.setUTCDate(d.getUTCDate() - (29 - index)); // 29 days ago → today
+	d.setUTCHours(8, 0, 0, 0);
+	const date = d.toISOString();
 	const id = `55555555-5555-5555-5555-${day.toString().padStart(12, "0")}`;
 
 	const titles = [
@@ -196,7 +199,7 @@ async function main() {
 					inputMethod: entry.inputMethod,
 					tags: entry.tags,
 					isPrivate: entry.isPrivate,
-					analysisStatus: "PENDING",
+					analysisStatus: "FAILED",
 				},
 				update: {
 					userId: owner.id,
