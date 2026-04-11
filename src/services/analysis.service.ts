@@ -3,6 +3,7 @@ import prisma from "../config/database";
 import { decrypt } from "../utils/encryption.util";
 import { AppError } from "../utils/app-error.util";
 import { aiService } from "./ai.service";
+import { musicService } from "./music.service";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 
@@ -135,6 +136,14 @@ async function runAnalysis(entryId: string): Promise<void> {
       // Clear cached music recommendations so they regenerate from the new analysis
       prisma.musicRecommendation.deleteMany({ where: { entryId } }),
     ]);
+
+    // Auto-generate music recommendation — fire-and-forget, non-blocking
+    musicService.getOrCreateRecommendation(entry.userId, entryId).catch((err) => {
+      console.error(
+        `[Analysis] Music pre-generation failed for entry ${entryId}:`,
+        err instanceof Error ? err.message : String(err),
+      );
+    });
   } catch (err: unknown) {
     console.error(
       `[Analysis] Failed for entry ${entryId}:`,

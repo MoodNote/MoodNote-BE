@@ -529,29 +529,22 @@ async function validateEntryForRecommendation(userId: string, entryId: string) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-async function getOrCreateRecommendation(userId: string, entryId: string) {
-	const { analysis, mode } = await validateEntryForRecommendation(
-		userId,
-		entryId,
-	);
+async function getOrCreateRecommendation(
+	userId: string,
+	entryId: string,
+): Promise<Awaited<ReturnType<typeof fetchFormattedRecommendation>> | null> {
+	const { mode } = await validateEntryForRecommendation(userId, entryId);
 
 	const existing = await prisma.musicRecommendation.findUnique({
 		where: { entryId_mode: { entryId, mode } },
 	});
 
-	if (existing) {
-		return fetchFormattedRecommendation(existing.id);
+	if (!existing) {
+		// Auto-generation is in progress — caller should retry shortly
+		return null;
 	}
 
-	const recommendationId = await generateAndPersist(
-		userId,
-		entryId,
-		mode,
-		analysis,
-		false,
-	);
-
-	return fetchFormattedRecommendation(recommendationId);
+	return fetchFormattedRecommendation(existing.id);
 }
 
 async function refreshRecommendation(userId: string, entryId: string) {

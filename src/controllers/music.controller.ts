@@ -25,6 +25,13 @@ export const musicController = {
 				req.user!.userId,
 				req.params.entryId,
 			);
+			if (!recommendation) {
+				return res.status(202).json({
+					success: true,
+					message: "Recommendation is being prepared, please try again shortly",
+					data: null,
+				});
+			}
 			res.status(200).json({
 				success: true,
 				message: "Recommendation retrieved successfully",
