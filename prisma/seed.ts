@@ -4,6 +4,7 @@ import { PrismaClient, type Theme, type UserRole } from "@prisma/client";
 import { Pool } from "pg";
 import bcrypt from "bcrypt";
 import { encrypt } from "../src/utils/encryption.util";
+import { randomUUID } from "crypto";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -35,7 +36,7 @@ type SeedEntry = {
 };
 
 const adminSeed: SeedUser = {
-	id: "11111111-1111-1111-1111-111111111111",
+	id: randomUUID(),
 	email: "admin@moodnote.com",
 	username: "admin",
 	name: "Admin",
@@ -46,11 +47,11 @@ const adminSeed: SeedUser = {
 
 const demoUsers: SeedUser[] = [
 	{
-		id: "22222222-2222-2222-2222-222222222222",
-		email: "lan@example.com",
-		username: "lan",
-		name: "Lan",
-		password: "Lan@123456",
+		id: randomUUID(),
+		email: "toanhuynhlilyiu@gmail.com",
+		username: "tonjiji",
+		name: "Toan Huynh",
+		password: "Toanhuynh0201@",
 		role: "USER",
 		theme: "SYSTEM",
 	},
@@ -64,7 +65,7 @@ const seedEntries: SeedEntry[] = Array.from({ length: 30 }).map((_, index) => {
 	d.setUTCDate(d.getUTCDate() - (29 - index)); // 29 days ago → today
 	d.setUTCHours(8, 0, 0, 0);
 	const date = d.toISOString();
-	const id = `55555555-5555-5555-5555-${day.toString().padStart(12, "0")}`;
+	const id = randomUUID();
 
 	const titles = [
 		"Một ngày nhẹ nhàng",
@@ -87,7 +88,7 @@ const seedEntries: SeedEntry[] = Array.from({ length: 30 }).map((_, index) => {
 
 	return {
 		id,
-		userEmail: "lan@example.com",
+		userEmail: "toanhuynhlilyiu@gmail.com",
 		title: titles[index % 5] + ` - Ngày ${day}`,
 		content: contents[index % 5],
 		entryDate: date,
@@ -128,12 +129,23 @@ async function main() {
 	);
 
 	await prisma.$transaction(async (tx) => {
-		await tx.moodEntry.deleteMany({
-			where: { id: { in: seedEntries.map((entry) => entry.id) } },
+		const userEmails = seedUsers.map((user) => user.email);
+
+		const existingUsers = await tx.user.findMany({
+			where: { email: { in: userEmails } },
+			select: { id: true },
 		});
 
+		const existingUserIds = existingUsers.map((u) => u.id);
+
+		if (existingUserIds.length > 0) {
+			await tx.moodEntry.deleteMany({
+				where: { userId: { in: existingUserIds } },
+			});
+		}
+
 		await tx.user.deleteMany({
-			where: { email: { in: seedUsers.map((user) => user.email) } },
+			where: { email: { in: userEmails } },
 		});
 
 		const seededUsers = new Map<
