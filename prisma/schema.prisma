@@ -51,6 +51,13 @@ enum RecommendationMode {
   SHIFT
 }
 
+enum MusicStatus {
+  PENDING      // Waiting for analysis to complete, not yet started
+  GENERATING   // Auto-generation is in progress (fire-and-forget running)
+  COMPLETED    // Successfully generated
+  FAILED       // Generation failed — user can retry via refresh endpoint
+}
+
 enum Theme {
   LIGHT
   DARK
@@ -225,6 +232,7 @@ model MoodEntry {
   tags             String[]       @default([])
   isPrivate        Boolean        @default(false)
   analysisStatus   AnalysisStatus @default(PENDING)
+  musicStatus      MusicStatus    @default(PENDING) @map("music_status")
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
@@ -236,6 +244,7 @@ model MoodEntry {
   @@index([userId, entryDate])
   @@index([userId, createdAt])
   @@index([analysisStatus])
+  @@index([musicStatus])
   @@map("mood_entries")
 }
 

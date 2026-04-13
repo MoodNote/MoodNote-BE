@@ -1,34 +1,12 @@
 import prisma from "../config/database";
-import { encrypt, decrypt } from "../utils/encryption.util";
+import { encrypt } from "../utils/encryption.util";
 import { AppError } from "../utils/app-error.util";
+import { decryptEntry, extractPlainText } from "../utils/entry.util";
 import { Prisma } from "@prisma/client";
-import { analysisService } from "./analysis.service";
+import { onEntryNeedsAnalysis } from "./pipeline.service";
+import type { Delta, EntryPayload } from "../types/entry.types";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
-
-interface DeltaOp {
-	insert: string | Record<string, unknown>;
-	attributes?: Record<string, unknown>;
-}
-
-interface Delta {
-	ops: DeltaOp[];
-}
-
-// title is NOT a separate DB column — it is stored inside encryptedContent
-// alongside the Quill Delta, so it benefits from the same field-level encryption.
-interface EntryPayload {
-	title: string | null;
-	content: Delta;
-}
-
-function extractPlainText(delta: Delta): string {
-	return delta.ops
-		.filter((op) => typeof op.insert === "string")
-		.map((op) => op.insert as string)
-		.join("")
-		.trim();
-}
 
 function calcWordCount(plainText: string): number {
 	return plainText.trim().split(/\s+/).filter(Boolean).length;
@@ -50,6 +28,7 @@ function formatEntryResponse(
 		wordCount: entry.wordCount,
 		isPrivate: entry.isPrivate,
 		analysisStatus: entry.analysisStatus,
+		musicStatus: entry.musicStatus,
 		createdAt: entry.createdAt,
 		updatedAt: entry.updatedAt,
 		emotionAnalysis: emotionAnalysis ?? null,
@@ -87,7 +66,7 @@ export const entryService = {
 		const now = new Date();
 		now.setHours(23, 59, 59, 999);
 		if (entryDate > now) {
-			throw new Error("Entry date cannot be in the future");
+			throw new AppError("Entry date cannot be in the future", 400);
 		}
 
 		const plainText = extractPlainText(data.content);
@@ -118,11 +97,7 @@ export const entryService = {
 		});
 
 		// Fire-and-forget AI analysis — response is not blocked
-		analysisService
-			.runAnalysis(entry.id)
-			.catch((err) =>
-				console.error("[Entry] Failed to start analysis:", err),
-			);
+		onEntryNeedsAnalysis(entry.id);
 
 		return formatEntryResponse(entry, payload, true);
 	},
@@ -180,12 +155,7 @@ export const entryService = {
 
 		const formattedEntries = entries.map((entry) => {
 			try {
-				const decrypted = decrypt(
-					entry.encryptedContent,
-					entry.contentIv,
-					ENCRYPTION_KEY,
-				);
-				const payload: EntryPayload = JSON.parse(decrypted);
+				const payload = decryptEntry(entry.encryptedContent, entry.contentIv);
 				const plainText = extractPlainText(payload.content);
 				const preview =
 					plainText.length > 30
@@ -229,12 +199,7 @@ export const entryService = {
 			throw new AppError("Access denied", 403);
 		}
 
-		const decrypted = decrypt(
-			entry.encryptedContent,
-			entry.contentIv,
-			ENCRYPTION_KEY,
-		);
-		const payload: EntryPayload = JSON.parse(decrypted);
+		const payload = decryptEntry(entry.encryptedContent, entry.contentIv);
 
 		return formatEntryResponse(
 			entry,
@@ -274,7 +239,7 @@ export const entryService = {
 			data.isPrivate !== undefined;
 
 		if (!hasUpdatableFields) {
-			throw new Error("No fields to update");
+			throw new AppError("No fields to update", 400);
 		}
 
 		const updateData: Parameters<
@@ -283,12 +248,7 @@ export const entryService = {
 
 		if (data.title !== undefined || data.content !== undefined) {
 			// Decrypt current payload and merge
-			const decrypted = decrypt(
-				entry.encryptedContent,
-				entry.contentIv,
-				ENCRYPTION_KEY,
-			);
-			const currentPayload: EntryPayload = JSON.parse(decrypted);
+			const currentPayload = decryptEntry(entry.encryptedContent, entry.contentIv);
 
 			const newPayload: EntryPayload = {
 				title:
@@ -329,19 +289,10 @@ export const entryService = {
 
 		// Fire-and-forget re-analysis when content changed
 		if (contentChanged) {
-			analysisService
-				.runAnalysis(updated.id)
-				.catch((err) =>
-					console.error("[Entry] Failed to restart analysis:", err),
-				);
+			onEntryNeedsAnalysis(updated.id);
 		}
 
-		const decrypted = decrypt(
-			updated.encryptedContent,
-			updated.contentIv,
-			ENCRYPTION_KEY,
-		);
-		const payload: EntryPayload = JSON.parse(decrypted);
+		const payload = decryptEntry(updated.encryptedContent, updated.contentIv);
 
 		return formatEntryResponse(updated, payload, true);
 	},

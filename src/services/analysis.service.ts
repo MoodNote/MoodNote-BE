@@ -1,22 +1,9 @@
-import { EmotionType } from "@prisma/client";
+import { EmotionType, MusicStatus } from "@prisma/client";
 import prisma from "../config/database";
-import { decrypt } from "../utils/encryption.util";
 import { AppError } from "../utils/app-error.util";
-import { aiService } from "./ai.service";
-import { musicService } from "./music.service";
-
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
-
-// ── Types (mirrors entry.service.ts internals) ────────────────────────────────
-
-interface DeltaOp {
-  insert: string | Record<string, unknown>;
-}
-
-interface EntryPayload {
-  title: string | null;
-  content: { ops: DeltaOp[] };
-}
+import { decryptAndExtractText } from "../utils/entry.util";
+import { aiService, type AiDiaryAnalysis } from "./ai.service";
+import { onAnalysisCompleted } from "./pipeline.service";
 
 // ── Emotion Mapping ───────────────────────────────────────────────────────────
 
@@ -34,24 +21,30 @@ function mapEmotion(aiEmotion: string): EmotionType {
   return AI_EMOTION_MAP[aiEmotion] ?? EmotionType.Other;
 }
 
-// ── Plain Text Extraction ─────────────────────────────────────────────────────
+// ── AI Retry Helper ───────────────────────────────────────────────────────────
 
-function extractPlainTextFromEntry(
-  encryptedContent: string,
-  iv: string,
-): string {
-  const decrypted = decrypt(encryptedContent, iv, ENCRYPTION_KEY);
-  const payload: EntryPayload = JSON.parse(decrypted);
+/**
+ * Calls the AI service with up to `maxRetries` additional attempts.
+ * Waits 2s then 4s between attempts before giving up.
+ * Returns null only after all retries are exhausted.
+ */
+async function callAIWithRetry(
+  text: string,
+  maxRetries = 2,
+): Promise<AiDiaryAnalysis | null> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const result = await aiService.analyzeDiary(text);
+    if (result !== null) return result;
 
-  const contentText = payload.content.ops
-    .filter((op) => typeof op.insert === "string")
-    .map((op) => op.insert as string)
-    .join("")
-    .trim();
-
-  // Include title for richer analysis context
-  const titleText = payload.title ? `${payload.title}\n` : "";
-  return `${titleText}${contentText}`;
+    if (attempt < maxRetries) {
+      const delayMs = 2000 * (attempt + 1); // 2s, 4s
+      console.warn(
+        `[Analysis] AI attempt ${attempt + 1}/${maxRetries + 1} failed, retrying in ${delayMs}ms`,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  return null;
 }
 
 // ── Core Analysis Worker ──────────────────────────────────────────────────────
@@ -87,13 +80,10 @@ async function runAnalysis(entryId: string): Promise<void> {
 
   try {
     // 3. Decrypt and extract plain text
-    const plainText = extractPlainTextFromEntry(
-      entry.encryptedContent,
-      entry.contentIv,
-    );
+    const plainText = decryptAndExtractText(entry.encryptedContent, entry.contentIv);
 
-    // 4. Call AI service
-    const aiResult = await aiService.analyzeDiary(plainText);
+    // 4. Call AI service (with retry)
+    const aiResult = await callAIWithRetry(plainText);
 
     if (!aiResult) {
       await prisma.moodEntry.update({
@@ -103,11 +93,23 @@ async function runAnalysis(entryId: string): Promise<void> {
       return;
     }
 
-    // 5. Map and persist result atomically
+    // 5. Map and persist result atomically.
+    //    Guard: abort if content was updated while we were calling the AI service.
+    //    updateEntry resets analysisStatus → PENDING when content changes,
+    //    so if status is no longer PROCESSING our result is for stale content.
     const primaryEmotion = mapEmotion(aiResult.overall_emotion);
 
-    await prisma.$transaction([
-      prisma.emotionAnalysis.upsert({
+    const committed = await prisma.$transaction(async (tx) => {
+      const current = await tx.moodEntry.findUnique({
+        where: { id: entryId },
+        select: { analysisStatus: true },
+      });
+
+      if (current?.analysisStatus !== "PROCESSING") {
+        return false; // Content was updated — let the new runAnalysis handle it
+      }
+
+      await tx.emotionAnalysis.upsert({
         where: { entryId },
         create: {
           entryId,
@@ -128,22 +130,26 @@ async function runAnalysis(entryId: string): Promise<void> {
           keywords: aiResult.keywords,
           analyzedAt: new Date(),
         },
-      }),
-      prisma.moodEntry.update({
-        where: { id: entryId },
-        data: { analysisStatus: "COMPLETED" },
-      }),
-      // Clear cached music recommendations so they regenerate from the new analysis
-      prisma.musicRecommendation.deleteMany({ where: { entryId } }),
-    ]);
+      });
 
-    // Auto-generate music recommendation — fire-and-forget, non-blocking
-    musicService.getOrCreateRecommendation(entry.userId, entryId).catch((err) => {
-      console.error(
-        `[Analysis] Music pre-generation failed for entry ${entryId}:`,
-        err instanceof Error ? err.message : String(err),
-      );
+      await tx.moodEntry.update({
+        where: { id: entryId },
+        data: {
+          analysisStatus: "COMPLETED",
+          musicStatus: MusicStatus.PENDING, // Reset so pipeline starts fresh generation
+        },
+      });
+
+      // Clear cached music recommendations so they regenerate from the new analysis
+      await tx.musicRecommendation.deleteMany({ where: { entryId } });
+
+      return true;
     });
+
+    if (committed) {
+      // Trigger music recommendation generation — fire-and-forget via pipeline
+      onAnalysisCompleted(entry.userId, entryId);
+    }
   } catch (err: unknown) {
     console.error(
       `[Analysis] Failed for entry ${entryId}:`,
@@ -224,11 +230,14 @@ async function retryFailed(): Promise<number> {
     select: { id: true },
   });
 
-  for (const { id } of failedEntries) {
-    runAnalysis(id).catch((err) =>
-      console.error(`[Analysis] Retry failed error for entry ${id}:`, err),
-    );
-  }
+  // Process sequentially — avoids DB connection pool saturation when retrying many entries at once
+  (async () => {
+    for (const { id } of failedEntries) {
+      await runAnalysis(id).catch((err) =>
+        console.error(`[Analysis] Retry failed error for entry ${id}:`, err),
+      );
+    }
+  })();
 
   return failedEntries.length;
 }
@@ -255,10 +264,44 @@ async function getStats(): Promise<{
   return { byStatus, total };
 }
 
+// ── Startup Recovery ──────────────────────────────────────────────────────────
+
+/**
+ * Called once on server start.
+ * Resets any entries stuck in PROCESSING (from a previous crash) back to PENDING,
+ * then queues all PENDING entries for analysis.
+ */
+async function recoverOnStartup(): Promise<void> {
+  const { count } = await prisma.moodEntry.updateMany({
+    where: { analysisStatus: "PROCESSING" },
+    data: { analysisStatus: "PENDING" },
+  });
+
+  if (count > 0) {
+    console.log(`[Startup] Reset ${count} stuck PROCESSING entries to PENDING`);
+  }
+
+  const pending = await prisma.moodEntry.findMany({
+    where: { analysisStatus: "PENDING" },
+    select: { id: true },
+  });
+
+  for (const { id } of pending) {
+    runAnalysis(id).catch((err) =>
+      console.error(`[Startup] Failed to queue entry ${id} for analysis:`, err),
+    );
+  }
+
+  if (pending.length > 0) {
+    console.log(`[Startup] Queued ${pending.length} pending entries for analysis`);
+  }
+}
+
 export const analysisService = {
   runAnalysis,
   triggerAnalysis,
   forceReanalyze,
   retryFailed,
   getStats,
+  recoverOnStartup,
 };
