@@ -1,26 +1,26 @@
 import prisma from "../config/database";
 
-const profileSelect = {
-	id: true,
-	email: true,
-	username: true,
-	name: true,
-	isEmailVerified: true,
-	createdAt: true,
-	updatedAt: true,
-};
+class UserService {
+	private readonly profileSelect = {
+		id: true,
+		email: true,
+		username: true,
+		name: true,
+		isEmailVerified: true,
+		createdAt: true,
+		updatedAt: true,
+	};
 
-export const userService = {
 	async getProfile(userId: string) {
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
-			select: profileSelect,
+			select: this.profileSelect,
 		});
 
 		if (!user) throw new Error("User not found");
 
 		return user;
-	},
+	}
 
 	async updateProfile(
 		userId: string,
@@ -37,9 +37,11 @@ export const userService = {
 		const updated = await prisma.user.update({
 			where: { id: userId },
 			data,
-			select: profileSelect,
+			select: this.profileSelect,
 		});
 
 		return { message: "Profile updated successfully", data: updated };
-	},
-};
+	}
+}
+
+export const userService = new UserService();

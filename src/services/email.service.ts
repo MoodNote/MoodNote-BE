@@ -1,7 +1,7 @@
 import { emailTransporter, emailConfig } from "../config/email.config";
 import { authConfig } from "../config/auth.config";
 
-export const emailService = {
+class EmailService {
 	/**
 	 * Send email verification OTP
 	 */
@@ -31,7 +31,7 @@ export const emailService = {
 		};
 
 		await emailTransporter.sendMail(mailOptions);
-	},
+	}
 
 	/**
 	 * Send password reset OTP
@@ -62,7 +62,7 @@ export const emailService = {
 		};
 
 		await emailTransporter.sendMail(mailOptions);
-	},
+	}
 
 	/**
 	 * Send password changed notification
@@ -84,5 +84,7 @@ export const emailService = {
 		};
 
 		await emailTransporter.sendMail(mailOptions);
-	},
-};
+	}
+}
+
+export const emailService = new EmailService();

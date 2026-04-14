@@ -4,44 +4,44 @@ import { encrypt } from "../utils/encryption.util";
 import { AppError } from "../utils/app-error.util";
 import { decryptEntry, extractPlainText } from "../utils/entry.util";
 import { Prisma } from "@prisma/client";
-import { onEntryNeedsAnalysis } from "./pipeline.service";
+import { pipelineService } from "./pipeline.service";
 import type { Delta, EntryPayload } from "../types/entry.types";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 
-function calcWordCount(plainText: string): number {
-	return plainText.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function formatEntryResponse(
-	entry: Prisma.MoodEntryGetPayload<object>,
-	payload: EntryPayload,
-	includeFullContent: boolean,
-	preview?: string,
-	emotionAnalysis?: Prisma.EmotionAnalysisGetPayload<object> | null,
-) {
-	const base = {
-		id: entry.id,
-		title: payload.title,
-		entryDate: entry.entryDate,
-		inputMethod: entry.inputMethod,
-		tags: entry.tags,
-		wordCount: entry.wordCount,
-		isPrivate: entry.isPrivate,
-		analysisStatus: entry.analysisStatus,
-		musicStatus: entry.musicStatus,
-		createdAt: entry.createdAt,
-		updatedAt: entry.updatedAt,
-		emotionAnalysis: emotionAnalysis ?? null,
-	};
-
-	if (includeFullContent) {
-		return { ...base, content: payload.content };
+class EntryService {
+	private calcWordCount(plainText: string): number {
+		return plainText.trim().split(/\s+/).filter(Boolean).length;
 	}
-	return { ...base, preview };
-}
 
-export const entryService = {
+	private formatEntryResponse(
+		entry: Prisma.MoodEntryGetPayload<object>,
+		payload: EntryPayload,
+		includeFullContent: boolean,
+		preview?: string,
+		emotionAnalysis?: Prisma.EmotionAnalysisGetPayload<object> | null,
+	) {
+		const base = {
+			id: entry.id,
+			title: payload.title,
+			entryDate: entry.entryDate,
+			inputMethod: entry.inputMethod,
+			tags: entry.tags,
+			wordCount: entry.wordCount,
+			isPrivate: entry.isPrivate,
+			analysisStatus: entry.analysisStatus,
+			musicStatus: entry.musicStatus,
+			createdAt: entry.createdAt,
+			updatedAt: entry.updatedAt,
+			emotionAnalysis: emotionAnalysis ?? null,
+		};
+
+		if (includeFullContent) {
+			return { ...base, content: payload.content };
+		}
+		return { ...base, preview };
+	}
+
 	async createEntry(
 		userId: string,
 		data: {
@@ -71,7 +71,7 @@ export const entryService = {
 		}
 
 		const plainText = extractPlainText(data.content);
-		const wordCount = calcWordCount(plainText);
+		const wordCount = this.calcWordCount(plainText);
 
 		const payload: EntryPayload = {
 			title: data.title ?? null,
@@ -98,10 +98,10 @@ export const entryService = {
 		});
 
 		// Fire-and-forget AI analysis — response is not blocked
-		onEntryNeedsAnalysis(entry.id);
+		pipelineService.onEntryNeedsAnalysis(entry.id);
 
-		return formatEntryResponse(entry, payload, true);
-	},
+		return this.formatEntryResponse(entry, payload, true);
+	}
 
 	async listEntries(
 		userId: string,
@@ -162,10 +162,10 @@ export const entryService = {
 					plainText.length > 30
 						? plainText.slice(0, 30) + "..."
 						: plainText;
-				return formatEntryResponse(entry, payload, false, preview, entry.emotionAnalysis);
+				return this.formatEntryResponse(entry, payload, false, preview, entry.emotionAnalysis);
 			} catch {
 				// If decryption fails, return entry without content
-				return formatEntryResponse(
+				return this.formatEntryResponse(
 					entry,
 					{ title: null, content: { ops: [] } },
 					false,
@@ -179,7 +179,7 @@ export const entryService = {
 			entries: formattedEntries,
 			pagination: buildPagination(total, page, limit),
 		};
-	},
+	}
 
 	async getEntry(userId: string, entryId: string) {
 		const entry = await prisma.moodEntry.findUnique({
@@ -197,14 +197,14 @@ export const entryService = {
 
 		const payload = decryptEntry(entry.encryptedContent, entry.contentIv);
 
-		return formatEntryResponse(
+		return this.formatEntryResponse(
 			entry,
 			payload,
 			true,
 			undefined,
 			entry.emotionAnalysis,
 		);
-	},
+	}
 
 	async updateEntry(
 		userId: string,
@@ -263,7 +263,7 @@ export const entryService = {
 
 			if (data.content !== undefined) {
 				const plainText = extractPlainText(data.content);
-				updateData.wordCount = calcWordCount(plainText);
+				updateData.wordCount = this.calcWordCount(plainText);
 				updateData.analysisStatus = "PENDING";
 			}
 		}
@@ -285,20 +285,20 @@ export const entryService = {
 
 		// Fire-and-forget re-analysis when content changed
 		if (contentChanged) {
-			onEntryNeedsAnalysis(updated.id);
+			pipelineService.onEntryNeedsAnalysis(updated.id);
 		}
 
 		const payload = decryptEntry(updated.encryptedContent, updated.contentIv);
 
-		return formatEntryResponse(updated, payload, true);
-	},
+		return this.formatEntryResponse(updated, payload, true);
+	}
 
 	async bulkDeleteEntries(userId: string, ids: string[]) {
 		const result = await prisma.moodEntry.deleteMany({
 			where: { id: { in: ids }, userId },
 		});
 		return { deletedCount: result.count };
-	},
+	}
 
 	async deleteEntry(userId: string, entryId: string) {
 		const entry = await prisma.moodEntry.findUnique({
@@ -316,5 +316,7 @@ export const entryService = {
 		await prisma.moodEntry.delete({ where: { id: entryId } });
 
 		return { message: "Entry deleted successfully" };
-	},
-};
+	}
+}
+
+export const entryService = new EntryService();

@@ -9,7 +9,7 @@ interface ListUsersOptions {
 	isActive?: boolean;
 }
 
-export const adminUserService = {
+class AdminUserService {
 	async listUsers(opts: ListUsersOptions) {
 		const { page, limit, search, isActive } = opts;
 		const skip = calcSkip(page, limit);
@@ -64,7 +64,7 @@ export const adminUserService = {
 			})),
 			pagination: buildPagination(total, page, limit),
 		};
-	},
+	}
 
 	async getUserDetail(id: string) {
 		const [user, entries] = await Promise.all([
@@ -111,7 +111,7 @@ export const adminUserService = {
 				})(),
 			},
 		};
-	},
+	}
 
 	async updateUserStatus(id: string, isActive: boolean) {
 		const user = await prisma.user.findUnique({
@@ -136,5 +136,7 @@ export const adminUserService = {
 		}
 
 		return { userId: id, isActive };
-	},
-};
+	}
+}
+
+export const adminUserService = new AdminUserService();

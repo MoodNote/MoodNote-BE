@@ -5,7 +5,7 @@ import { tokenUtil } from "../utils/token.util";
 import { emailService } from "./email.service";
 import { authConfig } from "../config/auth.config";
 
-export const authService = {
+class AuthService {
 	/**
 	 * FR-01: Register new user
 	 */
@@ -97,7 +97,7 @@ export const authService = {
 			message:
 				"Registration successful. Please check your email to verify your account.",
 		};
-	},
+	}
 
 	/**
 	 * FR-01: Verify email address with OTP
@@ -144,7 +144,7 @@ export const authService = {
 		return {
 			message: "Email verified successfully. You can now login.",
 		};
-	},
+	}
 
 	/**
 	 * FR-01: Resend email verification OTP
@@ -192,7 +192,7 @@ export const authService = {
 			message:
 				"If an account exists with this email, a new OTP has been sent.",
 		};
-	},
+	}
 
 	/**
 	 * FR-02: Login user
@@ -293,7 +293,7 @@ export const authService = {
 				isEmailVerified: user.isEmailVerified,
 			},
 		};
-	},
+	}
 
 	/**
 	 * FR-02: Refresh access token
@@ -333,7 +333,7 @@ export const authService = {
 		return {
 			accessToken: newAccessToken,
 		};
-	},
+	}
 
 	/**
 	 * FR-03: Request password reset
@@ -381,7 +381,7 @@ export const authService = {
 			message:
 				"If an account exists with this email, a password reset link has been sent.",
 		};
-	},
+	}
 
 	/**
 	 * FR-03: Resend password reset OTP
@@ -426,7 +426,7 @@ export const authService = {
 			message:
 				"If an account exists with this email, a new OTP has been sent.",
 		};
-	},
+	}
 
 	/**
 	 * FR-03: Verify OTP for password reset
@@ -462,7 +462,7 @@ export const authService = {
 		return {
 			message: "OTP verified. You can now reset your password.",
 		};
-	},
+	}
 
 	/**
 	 * FR-03: Reset password after OTP verification
@@ -526,7 +526,7 @@ export const authService = {
 			message:
 				"Password reset successfully. Please login with your new password.",
 		};
-	},
+	}
 
 	/**
 	 * FR-04: Change password (authenticated)
@@ -591,7 +591,7 @@ export const authService = {
 		return {
 			message: "Password changed successfully",
 		};
-	},
+	}
 
 	/**
 	 * Logout - revoke refresh token and remove device tokens
@@ -617,5 +617,7 @@ export const authService = {
 		return {
 			message: "Logged out successfully",
 		};
-	},
-};
+	}
+}
+
+export const authService = new AuthService();

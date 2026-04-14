@@ -61,56 +61,54 @@ interface ListQuery {
 	search?: string;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function formatTrack(
-	track: Prisma.TrackGetPayload<{
-		include: {
-			artists: { include: { artist: true } };
-			genres: { include: { genre: true } };
-		};
-	}>,
-) {
-	return {
-		id: track.id,
-		trackName: track.trackName,
-		albumName: track.albumName,
-		popularity: track.popularity,
-		isExplicit: track.isExplicit,
-		durationMs: track.durationMs,
-		danceability: track.danceability,
-		energy: track.energy,
-		key: track.key,
-		loudness: track.loudness,
-		speechiness: track.speechiness,
-		acousticness: track.acousticness,
-		instrumentalness: track.instrumentalness,
-		liveness: track.liveness,
-		valence: track.valence,
-		tempo: track.tempo,
-		lyrics: track.lyrics,
-		createdAt: track.createdAt,
-		updatedAt: track.updatedAt,
-		artists: track.artists.map((ta) => ({
-			id: ta.artist.id,
-			name: ta.artist.name,
-			role: ta.role,
-		})),
-		genres: track.genres.map((tg) => ({
-			id: tg.genre.id,
-			name: tg.genre.name,
-		})),
-	};
-}
-
-const trackInclude = {
-	artists: { include: { artist: true } },
-	genres: { include: { genre: true } },
-} as const;
-
 // ── Service ────────────────────────────────────────────────────────────────────
 
-export const adminMusicService = {
+class AdminMusicService {
+	private readonly trackInclude = {
+		artists: { include: { artist: true } },
+		genres: { include: { genre: true } },
+	} as const;
+
+	private formatTrack(
+		track: Prisma.TrackGetPayload<{
+			include: {
+				artists: { include: { artist: true } };
+				genres: { include: { genre: true } };
+			};
+		}>,
+	) {
+		return {
+			id: track.id,
+			trackName: track.trackName,
+			albumName: track.albumName,
+			popularity: track.popularity,
+			isExplicit: track.isExplicit,
+			durationMs: track.durationMs,
+			danceability: track.danceability,
+			energy: track.energy,
+			key: track.key,
+			loudness: track.loudness,
+			speechiness: track.speechiness,
+			acousticness: track.acousticness,
+			instrumentalness: track.instrumentalness,
+			liveness: track.liveness,
+			valence: track.valence,
+			tempo: track.tempo,
+			lyrics: track.lyrics,
+			createdAt: track.createdAt,
+			updatedAt: track.updatedAt,
+			artists: track.artists.map((ta) => ({
+				id: ta.artist.id,
+				name: ta.artist.name,
+				role: ta.role,
+			})),
+			genres: track.genres.map((tg) => ({
+				id: tg.genre.id,
+				name: tg.genre.name,
+			})),
+		};
+	}
+
 	// ── Tracks ─────────────────────────────────────────────────────────────
 
 	async createTrack(data: CreateTrackInput) {
@@ -147,13 +145,13 @@ export const adminMusicService = {
 						create: genreIds.map((genreId) => ({ genreId })),
 					},
 				},
-				include: trackInclude,
+				include: this.trackInclude,
 			});
 			return created;
 		});
 
-		return formatTrack(track);
-	},
+		return this.formatTrack(track);
+	}
 
 	async listTracks(query: ListTracksQuery) {
 		const { page, limit, search, genreId } = query;
@@ -172,7 +170,7 @@ export const adminMusicService = {
 		const [tracks, total] = await Promise.all([
 			prisma.track.findMany({
 				where,
-				include: trackInclude,
+				include: this.trackInclude,
 				orderBy: { createdAt: "desc" },
 				skip,
 				take: limit,
@@ -181,19 +179,19 @@ export const adminMusicService = {
 		]);
 
 		return {
-			tracks: tracks.map(formatTrack),
+			tracks: tracks.map((t) => this.formatTrack(t)),
 			pagination: buildPagination(total, page, limit),
 		};
-	},
+	}
 
 	async getTrack(id: string) {
 		const track = await prisma.track.findUnique({
 			where: { id },
-			include: trackInclude,
+			include: this.trackInclude,
 		});
 		if (!track) throw new AppError("Track not found", 404);
-		return formatTrack(track);
-	},
+		return this.formatTrack(track);
+	}
 
 	async updateTrack(id: string, data: UpdateTrackInput) {
 		const { artistIds, genreIds, ...trackData } = data;
@@ -246,12 +244,12 @@ export const adminMusicService = {
 			return tx.track.update({
 				where: { id },
 				data: trackData,
-				include: trackInclude,
+				include: this.trackInclude,
 			});
 		});
 
-		return formatTrack(track);
-	},
+		return this.formatTrack(track);
+	}
 
 	async deleteTrack(id: string) {
 		const existing = await prisma.track.findUnique({ where: { id } });
@@ -262,7 +260,7 @@ export const adminMusicService = {
 		} catch (error) {
 			handlePrismaError(error);
 		}
-	},
+	}
 
 	// ── Artists ────────────────────────────────────────────────────────────
 
@@ -273,7 +271,7 @@ export const adminMusicService = {
 		} catch (error) {
 			handlePrismaError(error);
 		}
-	},
+	}
 
 	async listArtists(query: ListQuery) {
 		const { page, limit, search } = query;
@@ -304,7 +302,7 @@ export const adminMusicService = {
 			})),
 			pagination: buildPagination(total, page, limit),
 		};
-	},
+	}
 
 	async getArtist(id: string) {
 		const artist = await prisma.artist.findUnique({
@@ -319,7 +317,7 @@ export const adminMusicService = {
 			createdAt: artist.createdAt,
 			updatedAt: artist.updatedAt,
 		};
-	},
+	}
 
 	async updateArtist(id: string, data: { name: string }) {
 		const existing = await prisma.artist.findUnique({ where: { id } });
@@ -329,7 +327,7 @@ export const adminMusicService = {
 		} catch (error) {
 			handlePrismaError(error);
 		}
-	},
+	}
 
 	async deleteArtist(id: string) {
 		const existing = await prisma.artist.findUnique({ where: { id } });
@@ -339,7 +337,7 @@ export const adminMusicService = {
 		} catch (error) {
 			handlePrismaError(error);
 		}
-	},
+	}
 
 	// ── Genres ─────────────────────────────────────────────────────────────
 
@@ -349,7 +347,7 @@ export const adminMusicService = {
 		} catch (error) {
 			handlePrismaError(error);
 		}
-	},
+	}
 
 	async listGenres(query: ListQuery) {
 		const { page, limit, search } = query;
@@ -378,7 +376,7 @@ export const adminMusicService = {
 			})),
 			pagination: buildPagination(total, page, limit),
 		};
-	},
+	}
 
 	async getGenre(id: string) {
 		const genre = await prisma.genre.findUnique({
@@ -387,7 +385,7 @@ export const adminMusicService = {
 		});
 		if (!genre) throw new AppError("Genre not found", 404);
 		return { id: genre.id, name: genre.name, trackCount: genre._count.tracks };
-	},
+	}
 
 	async updateGenre(id: string, data: { name: string }) {
 		const existing = await prisma.genre.findUnique({ where: { id } });
@@ -397,7 +395,7 @@ export const adminMusicService = {
 		} catch (error) {
 			handlePrismaError(error);
 		}
-	},
+	}
 
 	async deleteGenre(id: string) {
 		const existing = await prisma.genre.findUnique({ where: { id } });
@@ -407,7 +405,7 @@ export const adminMusicService = {
 		} catch (error) {
 			handlePrismaError(error);
 		}
-	},
+	}
 
 	// ── Stats ──────────────────────────────────────────────────────────────
 
@@ -444,5 +442,7 @@ export const adminMusicService = {
 			totals: { tracks: trackCount, artists: artistCount, genres: genreCount },
 			topGenres,
 		};
-	},
-};
+	}
+}
+
+export const adminMusicService = new AdminMusicService();

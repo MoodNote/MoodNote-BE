@@ -8,250 +8,84 @@ import {
 	type TrackWithArtists,
 } from "./music.algorithm";
 
-// ── Track Fetching ────────────────────────────────────────────────────────────
-
-async function fetchCandidateTracks(): Promise<TrackWithArtists[]> {
-	return prisma.track.findMany({
-		where: {
-			durationMs: { gte: 120000, lte: 420000 },
-			valence: { not: null },
-			energy: { not: null },
-			acousticness: { not: null },
-			danceability: { not: null },
-			tempo: { not: null },
-		},
-		include: {
-			artists: {
-				include: { artist: { select: { name: true } } },
-			},
-		},
-	});
-}
-
-// ── Persistence ───────────────────────────────────────────────────────────────
-
-async function persistRecommendation(
-	userId: string,
-	entryId: string,
-	mode: RecommendationMode,
-	orderedTracks: TrackWithArtists[],
-): Promise<string> {
-	return prisma.$transaction(async (tx) => {
-		const rec = await tx.musicRecommendation.upsert({
-			where: { entryId_mode: { entryId, mode } },
-			create: { entryId, userId, mode, generatedAt: new Date() },
-			update: { generatedAt: new Date() },
-		});
-
-		await tx.recommendationTrack.deleteMany({
-			where: { recommendationId: rec.id },
-		});
-
-		await tx.recommendationTrack.createMany({
-			data: orderedTracks.map((track, index) => ({
-				recommendationId: rec.id,
-				trackId: track.id,
-				order: index + 1,
-			})),
-		});
-
-		return rec.id;
-	});
-}
-
-async function fetchFormattedRecommendation(recommendationId: string) {
-	const rec = await prisma.musicRecommendation.findUniqueOrThrow({
-		where: { id: recommendationId },
-		include: {
-			tracks: {
-				orderBy: { order: "asc" },
-				include: {
-					track: {
-						include: {
-							artists: {
-								include: { artist: { select: { name: true } } },
-							},
-						},
-					},
-				},
-			},
-		},
-	});
-
-	return {
-		id: rec.id,
-		entryId: rec.entryId,
-		mode: rec.mode,
-		generatedAt: rec.generatedAt,
-		tracks: rec.tracks.map((rt) => ({
-			order: rt.order,
-			track: {
-				id: rt.track.id,
-				trackName: rt.track.trackName,
-				albumName: rt.track.albumName,
-				popularity: rt.track.popularity,
-				durationMs: rt.track.durationMs,
-				valence: rt.track.valence,
-				energy: rt.track.energy,
-				danceability: rt.track.danceability,
-				acousticness: rt.track.acousticness,
-				tempo: rt.track.tempo,
-				artists: rt.track.artists.map((ta) => ({ name: ta.artist.name })),
-			},
-		})),
-	};
-}
-
-// ── Core Generation ───────────────────────────────────────────────────────────
-
 type EmotionAnalysisData = NonNullable<
 	Prisma.MoodEntryGetPayload<{
 		include: { emotionAnalysis: true };
 	}>["emotionAnalysis"]
 >;
 
-async function generateAndPersist(
-	userId: string,
-	entryId: string,
-	mode: RecommendationMode,
-	analysis: EmotionAnalysisData,
-	withJitter: boolean,
-): Promise<string> {
-	const candidates = await fetchCandidateTracks();
+class MusicService {
+	// ── Track Fetching ────────────────────────────────────────────────────────────
 
-	if (candidates.length === 0) {
-		throw new AppError("No eligible tracks available for recommendation", 503);
+	private async fetchCandidateTracks(): Promise<TrackWithArtists[]> {
+		return prisma.track.findMany({
+			where: {
+				durationMs: { gte: 120000, lte: 420000 },
+				valence: { not: null },
+				energy: { not: null },
+				acousticness: { not: null },
+				danceability: { not: null },
+				tempo: { not: null },
+			},
+			include: {
+				artists: {
+					include: { artist: { select: { name: true } } },
+				},
+			},
+		});
 	}
 
-	const centroid = resolveCentroid({
-		primaryEmotion: analysis.primaryEmotion,
-		confidence: analysis.confidence,
-		intensity: analysis.intensity,
-		emotionDistribution: analysis.emotionDistribution,
-	});
+	// ── Persistence ───────────────────────────────────────────────────────────────
 
-	let orderedTracks: TrackWithArtists[];
+	private async persistRecommendation(
+		userId: string,
+		entryId: string,
+		mode: RecommendationMode,
+		orderedTracks: TrackWithArtists[],
+	): Promise<string> {
+		return prisma.$transaction(async (tx) => {
+			const rec = await tx.musicRecommendation.upsert({
+				where: { entryId_mode: { entryId, mode } },
+				create: { entryId, userId, mode, generatedAt: new Date() },
+				update: { generatedAt: new Date() },
+			});
 
-	if (mode === RecommendationMode.MIRROR) {
-		orderedTracks = runMirrorMode(candidates, centroid, withJitter);
-	} else {
-		orderedTracks = runShiftMode(
-			candidates,
-			centroid,
-			analysis.sentimentScore,
-			withJitter,
-		);
+			await tx.recommendationTrack.deleteMany({
+				where: { recommendationId: rec.id },
+			});
+
+			await tx.recommendationTrack.createMany({
+				data: orderedTracks.map((track, index) => ({
+					recommendationId: rec.id,
+					trackId: track.id,
+					order: index + 1,
+				})),
+			});
+
+			return rec.id;
+		});
 	}
 
-	const recommendationId = await persistRecommendation(userId, entryId, mode, orderedTracks);
-
-	// Mark music as completed — best-effort, entry may have been deleted
-	await prisma.moodEntry
-		.update({ where: { id: entryId }, data: { musicStatus: MusicStatus.COMPLETED } })
-		.catch(() => {});
-
-	return recommendationId;
-}
-
-// ── Entry Validation Helper ───────────────────────────────────────────────────
-
-async function validateEntryForRecommendation(userId: string, entryId: string) {
-	const entry = await prisma.moodEntry.findUnique({
-		where: { id: entryId },
-		include: { emotionAnalysis: true },
-	});
-
-	if (!entry) throw new AppError("Entry not found", 404);
-	if (entry.userId !== userId) throw new AppError("Access denied", 403);
-	if (entry.analysisStatus !== "COMPLETED") {
-		throw new AppError(
-			"Emotion analysis is not completed for this entry",
-			409,
-		);
-	}
-	if (!entry.emotionAnalysis) {
-		throw new AppError("Emotion analysis data not found", 404);
-	}
-
-	// SHIFT mode for negative sentiment (< -0.2), MIRROR otherwise
-	const mode: RecommendationMode =
-		entry.emotionAnalysis.sentimentScore < -0.2
-			? RecommendationMode.SHIFT
-			: RecommendationMode.MIRROR;
-
-	return { entry, analysis: entry.emotionAnalysis, mode };
-}
-
-// ── Public API ────────────────────────────────────────────────────────────────
-
-async function getOrCreateRecommendation(
-	userId: string,
-	entryId: string,
-): Promise<Awaited<ReturnType<typeof fetchFormattedRecommendation>> | null> {
-	const { entry, mode } = await validateEntryForRecommendation(userId, entryId);
-
-	// FAILED means auto-generation threw — tell the client to use refresh to retry
-	if (entry.musicStatus === MusicStatus.FAILED) {
-		throw new AppError(
-			"Music generation failed for this entry. Use the refresh endpoint to retry.",
-			503,
-		);
-	}
-
-	const existing = await prisma.musicRecommendation.findUnique({
-		where: { entryId_mode: { entryId, mode } },
-	});
-
-	if (!existing) {
-		// Auto-generation is in progress — caller should retry shortly
-		return null;
-	}
-
-	return fetchFormattedRecommendation(existing.id);
-}
-
-async function refreshRecommendation(userId: string, entryId: string) {
-	const { analysis, mode } = await validateEntryForRecommendation(
-		userId,
-		entryId,
-	);
-
-	const recommendationId = await generateAndPersist(
-		userId,
-		entryId,
-		mode,
-		analysis,
-		true,
-	);
-
-	return fetchFormattedRecommendation(recommendationId);
-}
-
-async function getRecentRecommendation(userId: string, limit: number) {
-	const rec = await prisma.musicRecommendation.findFirst({
-		where: { userId },
-		orderBy: { generatedAt: "desc" },
-		include: {
-			tracks: {
-				orderBy: { order: "asc" },
-				take: limit,
-				include: {
-					track: {
-						include: {
-							artists: {
-								include: { artist: { select: { name: true } } },
+	private async fetchFormattedRecommendation(recommendationId: string) {
+		const rec = await prisma.musicRecommendation.findUniqueOrThrow({
+			where: { id: recommendationId },
+			include: {
+				tracks: {
+					orderBy: { order: "asc" },
+					include: {
+						track: {
+							include: {
+								artists: {
+									include: { artist: { select: { name: true } } },
+								},
 							},
 						},
 					},
 				},
 			},
-		},
-	});
+		});
 
-	if (!rec) return { recommendation: null };
-
-	return {
-		recommendation: {
+		return {
 			id: rec.id,
 			entryId: rec.entryId,
 			mode: rec.mode,
@@ -262,34 +96,197 @@ async function getRecentRecommendation(userId: string, limit: number) {
 					id: rt.track.id,
 					trackName: rt.track.trackName,
 					albumName: rt.track.albumName,
+					popularity: rt.track.popularity,
 					durationMs: rt.track.durationMs,
+					valence: rt.track.valence,
+					energy: rt.track.energy,
+					danceability: rt.track.danceability,
+					acousticness: rt.track.acousticness,
+					tempo: rt.track.tempo,
 					artists: rt.track.artists.map((ta) => ({ name: ta.artist.name })),
 				},
 			})),
-		},
-	};
+		};
+	}
+
+	// ── Core Generation ───────────────────────────────────────────────────────────
+
+	private async generateAndPersist(
+		userId: string,
+		entryId: string,
+		mode: RecommendationMode,
+		analysis: EmotionAnalysisData,
+		withJitter: boolean,
+	): Promise<string> {
+		const candidates = await this.fetchCandidateTracks();
+
+		if (candidates.length === 0) {
+			throw new AppError("No eligible tracks available for recommendation", 503);
+		}
+
+		const centroid = resolveCentroid({
+			primaryEmotion: analysis.primaryEmotion,
+			confidence: analysis.confidence,
+			intensity: analysis.intensity,
+			emotionDistribution: analysis.emotionDistribution,
+		});
+
+		let orderedTracks: TrackWithArtists[];
+
+		if (mode === RecommendationMode.MIRROR) {
+			orderedTracks = runMirrorMode(candidates, centroid, withJitter);
+		} else {
+			orderedTracks = runShiftMode(
+				candidates,
+				centroid,
+				analysis.sentimentScore,
+				withJitter,
+			);
+		}
+
+		const recommendationId = await this.persistRecommendation(userId, entryId, mode, orderedTracks);
+
+		// Mark music as completed — best-effort, entry may have been deleted
+		await prisma.moodEntry
+			.update({ where: { id: entryId }, data: { musicStatus: MusicStatus.COMPLETED } })
+			.catch(() => {});
+
+		return recommendationId;
+	}
+
+	// ── Entry Validation Helper ───────────────────────────────────────────────────
+
+	private async validateEntryForRecommendation(userId: string, entryId: string) {
+		const entry = await prisma.moodEntry.findUnique({
+			where: { id: entryId },
+			include: { emotionAnalysis: true },
+		});
+
+		if (!entry) throw new AppError("Entry not found", 404);
+		if (entry.userId !== userId) throw new AppError("Access denied", 403);
+		if (entry.analysisStatus !== "COMPLETED") {
+			throw new AppError(
+				"Emotion analysis is not completed for this entry",
+				409,
+			);
+		}
+		if (!entry.emotionAnalysis) {
+			throw new AppError("Emotion analysis data not found", 404);
+		}
+
+		// SHIFT mode for negative sentiment (< -0.2), MIRROR otherwise
+		const mode: RecommendationMode =
+			entry.emotionAnalysis.sentimentScore < -0.2
+				? RecommendationMode.SHIFT
+				: RecommendationMode.MIRROR;
+
+		return { entry, analysis: entry.emotionAnalysis, mode };
+	}
+
+	// ── Public API ────────────────────────────────────────────────────────────────
+
+	async getOrCreateRecommendation(
+		userId: string,
+		entryId: string,
+	): Promise<Awaited<ReturnType<typeof this.fetchFormattedRecommendation>> | null> {
+		const { entry, mode } = await this.validateEntryForRecommendation(userId, entryId);
+
+		// FAILED means auto-generation threw — tell the client to use refresh to retry
+		if (entry.musicStatus === MusicStatus.FAILED) {
+			throw new AppError(
+				"Music generation failed for this entry. Use the refresh endpoint to retry.",
+				503,
+			);
+		}
+
+		const existing = await prisma.musicRecommendation.findUnique({
+			where: { entryId_mode: { entryId, mode } },
+		});
+
+		if (!existing) {
+			// Auto-generation is in progress — caller should retry shortly
+			return null;
+		}
+
+		return this.fetchFormattedRecommendation(existing.id);
+	}
+
+	async refreshRecommendation(userId: string, entryId: string) {
+		const { analysis, mode } = await this.validateEntryForRecommendation(
+			userId,
+			entryId,
+		);
+
+		const recommendationId = await this.generateAndPersist(
+			userId,
+			entryId,
+			mode,
+			analysis,
+			true,
+		);
+
+		return this.fetchFormattedRecommendation(recommendationId);
+	}
+
+	async getRecentRecommendation(userId: string, limit: number) {
+		const rec = await prisma.musicRecommendation.findFirst({
+			where: { userId },
+			orderBy: { generatedAt: "desc" },
+			include: {
+				tracks: {
+					orderBy: { order: "asc" },
+					take: limit,
+					include: {
+						track: {
+							include: {
+								artists: {
+									include: { artist: { select: { name: true } } },
+								},
+							},
+						},
+					},
+				},
+			},
+		});
+
+		if (!rec) return { recommendation: null };
+
+		return {
+			recommendation: {
+				id: rec.id,
+				entryId: rec.entryId,
+				mode: rec.mode,
+				generatedAt: rec.generatedAt,
+				tracks: rec.tracks.map((rt) => ({
+					order: rt.order,
+					track: {
+						id: rt.track.id,
+						trackName: rt.track.trackName,
+						albumName: rt.track.albumName,
+						durationMs: rt.track.durationMs,
+						artists: rt.track.artists.map((ta) => ({ name: ta.artist.name })),
+					},
+				})),
+			},
+		};
+	}
+
+	/**
+	 * Called fire-and-forget after emotion analysis completes.
+	 * Generates the initial recommendation (no jitter) and persists it.
+	 */
+	async autoGenerateRecommendation(
+		userId: string,
+		entryId: string,
+	): Promise<void> {
+		const { analysis, mode } = await this.validateEntryForRecommendation(userId, entryId);
+		await prisma.moodEntry.update({
+			where: { id: entryId },
+			data: { musicStatus: MusicStatus.GENERATING },
+		});
+		await this.generateAndPersist(userId, entryId, mode, analysis, false);
+		// musicStatus → COMPLETED is set inside generateAndPersist
+	}
 }
 
-/**
- * Called fire-and-forget after emotion analysis completes.
- * Generates the initial recommendation (no jitter) and persists it.
- */
-async function autoGenerateRecommendation(
-	userId: string,
-	entryId: string,
-): Promise<void> {
-	const { analysis, mode } = await validateEntryForRecommendation(userId, entryId);
-	await prisma.moodEntry.update({
-		where: { id: entryId },
-		data: { musicStatus: MusicStatus.GENERATING },
-	});
-	await generateAndPersist(userId, entryId, mode, analysis, false);
-	// musicStatus → COMPLETED is set inside generateAndPersist
-}
-
-export const musicService = {
-	getOrCreateRecommendation,
-	refreshRecommendation,
-	getRecentRecommendation,
-	autoGenerateRecommendation,
-};
+export const musicService = new MusicService();

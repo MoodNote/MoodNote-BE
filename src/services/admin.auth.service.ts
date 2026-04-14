@@ -3,7 +3,7 @@ import { passwordUtil } from "../utils/password.util";
 import { jwtUtil } from "../utils/jwt.util";
 import { authConfig } from "../config/auth.config";
 
-export const adminAuthService = {
+class AdminAuthService {
 	async adminLogin(email: string, password: string) {
 		const user = await prisma.user.findUnique({
 			where: { email: email.toLowerCase() },
@@ -70,7 +70,7 @@ export const adminAuthService = {
 				role: user.role,
 			},
 		};
-	},
+	}
 
 	async refreshAdminToken(refreshToken: string) {
 		try {
@@ -96,12 +96,14 @@ export const adminAuthService = {
 		);
 
 		return { accessToken: newAccessToken, expiresIn: 3600 };
-	},
+	}
 
 	async adminLogout(refreshToken: string) {
 		await prisma.refreshToken.updateMany({
 			where: { token: refreshToken },
 			data: { isRevoked: true },
 		});
-	},
-};
+	}
+}
+
+export const adminAuthService = new AdminAuthService();

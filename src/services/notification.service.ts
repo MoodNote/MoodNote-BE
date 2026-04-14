@@ -23,7 +23,7 @@ interface SendToUsersData extends SendNotificationData {
 	userIds: string[];
 }
 
-export const notificationService = {
+class NotificationService {
 	async listNotifications(userId: string, opts: ListNotificationsOptions) {
 		const { page, limit, isRead, type } = opts;
 		const skip = calcSkip(page, limit);
@@ -58,14 +58,14 @@ export const notificationService = {
 			notifications,
 			pagination: buildPagination(total, page, limit),
 		};
-	},
+	}
 
 	async getUnreadCount(userId: string) {
 		const count = await prisma.notification.count({
 			where: { userId, isRead: false },
 		});
 		return { count };
-	},
+	}
 
 	async markAsRead(userId: string, notificationId: string) {
 		const notification = await prisma.notification.findFirst({
@@ -84,7 +84,7 @@ export const notificationService = {
 			where: { id: notificationId },
 			data: { isRead: true, readAt: new Date() },
 		});
-	},
+	}
 
 	async markAllAsRead(userId: string) {
 		const result = await prisma.notification.updateMany({
@@ -92,7 +92,7 @@ export const notificationService = {
 			data: { isRead: true, readAt: new Date() },
 		});
 		return { updated: result.count };
-	},
+	}
 
 	async deleteNotification(userId: string, notificationId: string) {
 		const notification = await prisma.notification.findFirst({
@@ -104,7 +104,7 @@ export const notificationService = {
 		}
 
 		await prisma.notification.delete({ where: { id: notificationId } });
-	},
+	}
 
 	async getSettings(userId: string) {
 		return prisma.notificationSettings.upsert({
@@ -112,7 +112,7 @@ export const notificationService = {
 			update: {},
 			create: { userId },
 		});
-	},
+	}
 
 	async updateSettings(
 		userId: string,
@@ -127,7 +127,7 @@ export const notificationService = {
 			update: data,
 			create: { userId, ...data },
 		});
-	},
+	}
 
 	async registerDeviceToken(
 		userId: string,
@@ -139,11 +139,11 @@ export const notificationService = {
 			update: { userId, platform },
 			create: { userId, token, platform },
 		});
-	},
+	}
 
 	async removeDeviceToken(userId: string, token: string) {
 		await prisma.deviceToken.deleteMany({ where: { userId, token } });
-	},
+	}
 
 	async broadcastNotification(data: SendNotificationData) {
 		const users = await prisma.user.findMany({
@@ -182,7 +182,7 @@ export const notificationService = {
 		}
 
 		return { sent: users.length };
-	},
+	}
 
 	async sendToUsers(data: SendToUsersData) {
 		const { userIds, ...notifData } = data;
@@ -232,7 +232,7 @@ export const notificationService = {
 		}
 
 		return { sent: validUsers.length, requested: userIds.length };
-	},
+	}
 
 	async processReminders() {
 		const now = new Date();
@@ -315,5 +315,7 @@ export const notificationService = {
 		console.log(
 			`[Reminder] Sent ${usersToNotify.length} reminder(s) at ${currentTime}`,
 		);
-	},
-};
+	}
+}
+
+export const notificationService = new NotificationService();
