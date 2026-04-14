@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { adminStatsService } from "../services/admin-stats.service";
+import { adminStatsService } from "../services/admin.stats.service";
 
 export const adminStatsController = {
 	/**
