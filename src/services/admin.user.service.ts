@@ -1,29 +1,6 @@
 import prisma from "../config/database";
-
-function calculateStreak(entryDates: Date[]): number {
-	if (entryDates.length === 0) return 0;
-
-	const uniqueDates = [
-		...new Set(entryDates.map((d) => d.toISOString().split("T")[0])),
-	]
-		.sort()
-		.reverse();
-
-	const today = new Date();
-	today.setUTCHours(0, 0, 0, 0);
-
-	let streak = 0;
-	for (let i = 0; i < uniqueDates.length; i++) {
-		const expected = new Date(today);
-		expected.setUTCDate(today.getUTCDate() - i);
-		if (uniqueDates[i] === expected.toISOString().split("T")[0]) {
-			streak++;
-		} else {
-			break;
-		}
-	}
-	return streak;
-}
+import { countStreakFromToday } from "../utils/date.util";
+import { calcSkip, buildPagination } from "../utils/pagination.util";
 
 interface ListUsersOptions {
 	page: number;
@@ -35,7 +12,7 @@ interface ListUsersOptions {
 export const adminUserService = {
 	async listUsers(opts: ListUsersOptions) {
 		const { page, limit, search, isActive } = opts;
-		const skip = (page - 1) * limit;
+		const skip = calcSkip(page, limit);
 
 		const where = {
 			...(isActive !== undefined && { isActive }),
@@ -85,12 +62,7 @@ export const adminUserService = {
 				createdAt: u.createdAt,
 				entryCount: u._count.moodEntries,
 			})),
-			pagination: {
-				total,
-				page,
-				limit,
-				totalPages: Math.ceil(total / limit),
-			},
+			pagination: buildPagination(total, page, limit),
 		};
 	},
 
@@ -131,7 +103,12 @@ export const adminUserService = {
 				lastLoginAt: user.lastLoginAt,
 				createdAt: user.createdAt,
 				entryCount: user._count.moodEntries,
-				streakDays: calculateStreak(entries.map((e) => e.entryDate)),
+				streakDays: (() => {
+					const dateSet = new Set(
+						entries.map((e) => e.entryDate.toISOString().split("T")[0]),
+					);
+					return countStreakFromToday((d) => dateSet.has(d));
+				})(),
 			},
 		};
 	},

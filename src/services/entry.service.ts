@@ -1,4 +1,5 @@
 import prisma from "../config/database";
+import { calcSkip, buildPagination } from "../utils/pagination.util";
 import { encrypt } from "../utils/encryption.util";
 import { AppError } from "../utils/app-error.util";
 import { decryptEntry, extractPlainText } from "../utils/entry.util";
@@ -114,7 +115,7 @@ export const entryService = {
 		},
 	) {
 		const { page, limit, startDate, endDate, tags, analysisStatus } = query;
-		const skip = (page - 1) * limit;
+		const skip = calcSkip(page, limit);
 
 		const where: Prisma.MoodEntryWhereInput = { userId };
 
@@ -176,12 +177,7 @@ export const entryService = {
 
 		return {
 			entries: formattedEntries,
-			pagination: {
-				total,
-				page,
-				limit,
-				totalPages: Math.ceil(total / limit),
-			},
+			pagination: buildPagination(total, page, limit),
 		};
 	},
 

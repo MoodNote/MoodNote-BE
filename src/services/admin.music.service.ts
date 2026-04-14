@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import prisma from "../config/database";
 import { AppError } from "../utils/app-error.util";
+import { handlePrismaError } from "../utils/prisma.util";
+import { calcSkip, buildPagination } from "../utils/pagination.util";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -60,24 +62,6 @@ interface ListQuery {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function handlePrismaError(error: unknown): never {
-	if (error instanceof Prisma.PrismaClientKnownRequestError) {
-		if (error.code === "P2002") {
-			throw new AppError("Name already exists", 409);
-		}
-		if (error.code === "P2025") {
-			throw new AppError("Record not found", 404);
-		}
-		if (error.code === "P2003" || error.code === "P2014") {
-			throw new AppError(
-				"Cannot delete: record is referenced by other data",
-				409,
-			);
-		}
-	}
-	throw error;
-}
 
 function formatTrack(
 	track: Prisma.TrackGetPayload<{
@@ -173,7 +157,7 @@ export const adminMusicService = {
 
 	async listTracks(query: ListTracksQuery) {
 		const { page, limit, search, genreId } = query;
-		const skip = (page - 1) * limit;
+		const skip = calcSkip(page, limit);
 
 		const where: Prisma.TrackWhereInput = {
 			...(search && {
@@ -198,12 +182,7 @@ export const adminMusicService = {
 
 		return {
 			tracks: tracks.map(formatTrack),
-			pagination: {
-				total,
-				page,
-				limit,
-				totalPages: Math.ceil(total / limit),
-			},
+			pagination: buildPagination(total, page, limit),
 		};
 	},
 
@@ -298,7 +277,7 @@ export const adminMusicService = {
 
 	async listArtists(query: ListQuery) {
 		const { page, limit, search } = query;
-		const skip = (page - 1) * limit;
+		const skip = calcSkip(page, limit);
 
 		const where: Prisma.ArtistWhereInput = search
 			? { name: { contains: search, mode: "insensitive" } }
@@ -323,12 +302,7 @@ export const adminMusicService = {
 				createdAt: a.createdAt,
 				updatedAt: a.updatedAt,
 			})),
-			pagination: {
-				total,
-				page,
-				limit,
-				totalPages: Math.ceil(total / limit),
-			},
+			pagination: buildPagination(total, page, limit),
 		};
 	},
 
@@ -379,7 +353,7 @@ export const adminMusicService = {
 
 	async listGenres(query: ListQuery) {
 		const { page, limit, search } = query;
-		const skip = (page - 1) * limit;
+		const skip = calcSkip(page, limit);
 
 		const where: Prisma.GenreWhereInput = search
 			? { name: { contains: search, mode: "insensitive" } }
@@ -402,12 +376,7 @@ export const adminMusicService = {
 				name: g.name,
 				trackCount: g._count.tracks,
 			})),
-			pagination: {
-				total,
-				page,
-				limit,
-				totalPages: Math.ceil(total / limit),
-			},
+			pagination: buildPagination(total, page, limit),
 		};
 	},
 

@@ -2,6 +2,8 @@ import prisma from "../config/database";
 import { fcmUtil } from "../utils/fcm.util";
 import { AppError } from "../utils/app-error.util";
 import { NotificationType, Prisma } from "@prisma/client";
+import { startOfDay, endOfDay } from "../utils/date.util";
+import { calcSkip, buildPagination } from "../utils/pagination.util";
 
 interface ListNotificationsOptions {
 	page: number;
@@ -24,7 +26,7 @@ interface SendToUsersData extends SendNotificationData {
 export const notificationService = {
 	async listNotifications(userId: string, opts: ListNotificationsOptions) {
 		const { page, limit, isRead, type } = opts;
-		const skip = (page - 1) * limit;
+		const skip = calcSkip(page, limit);
 
 		const where = {
 			userId,
@@ -54,12 +56,7 @@ export const notificationService = {
 
 		return {
 			notifications,
-			pagination: {
-				total,
-				page,
-				limit,
-				totalPages: Math.ceil(total / limit),
-			},
+			pagination: buildPagination(total, page, limit),
 		};
 	},
 
@@ -257,10 +254,8 @@ export const notificationService = {
 
 		if (settings.length === 0) return;
 
-		const todayStart = new Date(now);
-		todayStart.setHours(0, 0, 0, 0);
-		const todayEnd = new Date(now);
-		todayEnd.setHours(23, 59, 59, 999);
+		const todayStart = startOfDay(now);
+		const todayEnd = endOfDay(now);
 
 		const reminderTitle = "Đừng quên viết nhật ký hôm nay 📝";
 		const reminderMessage =

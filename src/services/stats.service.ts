@@ -1,4 +1,5 @@
 import prisma from "../config/database";
+import { countStreakFromToday } from "../utils/date.util";
 
 // ─────────────────────────────────────────
 // Types
@@ -341,27 +342,10 @@ export async function getSummary(userId: string) {
 		}
 	}
 
-	// Count consecutive days going backwards from today
-	function countStreak(predicate: (dateStr: string) => boolean): number {
-		let streak = 0;
-		const cursor = new Date();
-		cursor.setUTCHours(0, 0, 0, 0);
-		while (true) {
-			const dateStr = cursor.toISOString().split("T")[0];
-			if (predicate(dateStr)) {
-				streak++;
-				cursor.setUTCDate(cursor.getUTCDate() - 1);
-			} else {
-				break;
-			}
-		}
-		return streak;
-	}
-
 	return {
-		writingStreak: countStreak((d) => writingDates.has(d)),
-		smileStreak: countStreak((d) => emotionByDate.get(d) === "Enjoyment"),
-		sadStreak: countStreak((d) => emotionByDate.get(d) === "Sadness"),
+		writingStreak: countStreakFromToday((d) => writingDates.has(d)),
+		smileStreak: countStreakFromToday((d) => emotionByDate.get(d) === "Enjoyment"),
+		sadStreak: countStreakFromToday((d) => emotionByDate.get(d) === "Sadness"),
 	};
 }
 

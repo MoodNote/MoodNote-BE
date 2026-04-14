@@ -1,18 +1,5 @@
 import prisma from "../config/database";
-
-// ─────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────
-
-function startOfDay(date: Date): Date {
-	const d = new Date(date);
-	d.setHours(0, 0, 0, 0);
-	return d;
-}
-
-function daysAgo(n: number): Date {
-	return new Date(Date.now() - n * 24 * 60 * 60 * 1000);
-}
+import { startOfDay, daysAgo } from "../utils/date.util";
 
 // ─────────────────────────────────────────
 // FR-25: Admin Overview
