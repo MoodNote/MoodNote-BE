@@ -1,19 +1,8 @@
 import { Request, Response } from "express";
 import { notificationService } from "../services/notification.service";
-import { AppError } from "../utils/app-error.util";
 import { NotificationType } from "@prisma/client";
-
-const handleError = (error: unknown, res: Response, fallback: string) => {
-	if (error instanceof AppError) {
-		return res
-			.status(error.statusCode)
-			.json({ success: false, message: error.message });
-	}
-	res.status(400).json({
-		success: false,
-		message: error instanceof Error ? error.message : fallback,
-	});
-};
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const notificationController = {
 	async listNotifications(req: Request, res: Response) {
@@ -32,7 +21,7 @@ export const notificationController = {
 				type: type as NotificationType | undefined,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Notifications retrieved successfully",
 				data: result,
@@ -47,7 +36,7 @@ export const notificationController = {
 			const userId = req.user!.userId;
 			const result = await notificationService.getUnreadCount(userId);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Unread count retrieved",
 				data: result,
@@ -64,7 +53,7 @@ export const notificationController = {
 
 			await notificationService.markAsRead(userId, id);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Notification marked as read",
 			});
@@ -78,7 +67,7 @@ export const notificationController = {
 			const userId = req.user!.userId;
 			const result = await notificationService.markAllAsRead(userId);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "All notifications marked as read",
 				data: result,
@@ -95,7 +84,7 @@ export const notificationController = {
 
 			await notificationService.deleteNotification(userId, id);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Notification deleted successfully",
 			});
@@ -109,7 +98,7 @@ export const notificationController = {
 			const userId = req.user!.userId;
 			const settings = await notificationService.getSettings(userId);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Notification settings retrieved",
 				data: { settings },
@@ -130,7 +119,7 @@ export const notificationController = {
 				reminderDays,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Notification settings updated",
 				data: { settings },
@@ -147,7 +136,7 @@ export const notificationController = {
 
 			await notificationService.registerDeviceToken(userId, token, platform);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Device token registered successfully",
 			});
@@ -163,7 +152,7 @@ export const notificationController = {
 
 			await notificationService.removeDeviceToken(userId, token);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Device token removed successfully",
 			});

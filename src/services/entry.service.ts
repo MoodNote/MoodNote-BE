@@ -2,6 +2,7 @@ import prisma from "../config/database";
 import { calcSkip, buildPagination } from "../utils/pagination.util";
 import { encrypt } from "../utils/encryption.util";
 import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 import { decryptEntry, extractPlainText } from "../utils/entry.util";
 import { Prisma } from "@prisma/client";
 import { pipelineService } from "./pipeline.service";
@@ -67,7 +68,7 @@ class EntryService {
 		const now = new Date();
 		now.setHours(23, 59, 59, 999);
 		if (entryDate > now) {
-			throw new AppError("Entry date cannot be in the future", 400);
+			throw new AppError("Entry date cannot be in the future", HttpStatus.BAD_REQUEST);
 		}
 
 		const plainText = extractPlainText(data.content);
@@ -188,11 +189,11 @@ class EntryService {
 		});
 
 		if (!entry) {
-			throw new AppError("Entry not found", 404);
+			throw new AppError("Entry not found", HttpStatus.NOT_FOUND);
 		}
 
 		if (entry.userId !== userId) {
-			throw new AppError("Access denied", 403);
+			throw new AppError("Access denied", HttpStatus.FORBIDDEN);
 		}
 
 		const payload = decryptEntry(entry.encryptedContent, entry.contentIv);
@@ -221,11 +222,11 @@ class EntryService {
 		});
 
 		if (!entry) {
-			throw new AppError("Entry not found", 404);
+			throw new AppError("Entry not found", HttpStatus.NOT_FOUND);
 		}
 
 		if (entry.userId !== userId) {
-			throw new AppError("Access denied", 403);
+			throw new AppError("Access denied", HttpStatus.FORBIDDEN);
 		}
 
 		const hasUpdatableFields =
@@ -235,7 +236,7 @@ class EntryService {
 			data.isPrivate !== undefined;
 
 		if (!hasUpdatableFields) {
-			throw new AppError("No fields to update", 400);
+			throw new AppError("No fields to update", HttpStatus.BAD_REQUEST);
 		}
 
 		const updateData: Parameters<
@@ -306,11 +307,11 @@ class EntryService {
 		});
 
 		if (!entry) {
-			throw new AppError("Entry not found", 404);
+			throw new AppError("Entry not found", HttpStatus.NOT_FOUND);
 		}
 
 		if (entry.userId !== userId) {
-			throw new AppError("Access denied", 403);
+			throw new AppError("Access denied", HttpStatus.FORBIDDEN);
 		}
 
 		await prisma.moodEntry.delete({ where: { id: entryId } });

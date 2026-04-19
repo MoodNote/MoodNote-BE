@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { analysisService } from "../services/analysis.service";
-import { AppError } from "../utils/app-error.util";
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const analysisController = {
   /**
@@ -12,20 +13,12 @@ export const analysisController = {
     try {
       await analysisService.triggerAnalysis(req.user!.userId, req.params.id);
 
-      res.status(202).json({
+      res.status(HttpStatus.ACCEPTED).json({
         success: true,
         message: "Đã bắt đầu phân tích cảm xúc",
       });
     } catch (error) {
-      if (error instanceof AppError) {
-        return res
-          .status(error.statusCode)
-          .json({ success: false, message: error.message });
-      }
-      res.status(500).json({
-        success: false,
-        message: "Không thể kích hoạt phân tích",
-      });
+      handleError(error, res, "Không thể kích hoạt phân tích");
     }
   },
 };

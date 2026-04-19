@@ -1,6 +1,8 @@
 import prisma from "../config/database";
 import { countStreakFromToday } from "../utils/date.util";
 import { calcSkip, buildPagination } from "../utils/pagination.util";
+import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 interface ListUsersOptions {
 	page: number;
@@ -89,7 +91,7 @@ class AdminUserService {
 			}),
 		]);
 
-		if (!user) throw new Error("User not found");
+		if (!user) throw new AppError("User not found", HttpStatus.NOT_FOUND);
 
 		return {
 			user: {
@@ -119,9 +121,9 @@ class AdminUserService {
 			select: { id: true, role: true },
 		});
 
-		if (!user) throw new Error("User not found");
+		if (!user) throw new AppError("User not found", HttpStatus.NOT_FOUND);
 		if (user.role === "ADMIN")
-			throw new Error("Cannot change status of admin accounts");
+			throw new AppError("Cannot change status of admin accounts", HttpStatus.FORBIDDEN);
 
 		if (!isActive) {
 			await prisma.$transaction([

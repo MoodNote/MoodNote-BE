@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { adminUserService } from "../services/admin.user.service";
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const adminUserController = {
 	async listUsers(req: Request, res: Response) {
@@ -21,16 +23,13 @@ export const adminUserController = {
 							: undefined,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Users retrieved successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to retrieve users",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve users");
 		}
 	},
 
@@ -38,17 +37,13 @@ export const adminUserController = {
 		try {
 			const { id } = req.params;
 			const result = await adminUserService.getUserDetail(id);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "User detail retrieved successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			const status = error.message === "User not found" ? 404 : 400;
-			res.status(status).json({
-				success: false,
-				message: error.message || "Failed to retrieve user",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve user");
 		}
 	},
 
@@ -57,17 +52,13 @@ export const adminUserController = {
 			const { id } = req.params;
 			const { isActive } = req.body as { isActive: boolean };
 			const result = await adminUserService.updateUserStatus(id, isActive);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "User status updated successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			const status = error.message === "User not found" ? 404 : 400;
-			res.status(status).json({
-				success: false,
-				message: error.message || "Failed to update user status",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to update user status");
 		}
 	},
 };

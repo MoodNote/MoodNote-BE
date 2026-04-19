@@ -1,6 +1,7 @@
 import prisma from "../config/database";
 import { fcmUtil } from "../utils/fcm.util";
 import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 import { NotificationType, Prisma } from "@prisma/client";
 import { startOfDay, endOfDay } from "../utils/date.util";
 import { calcSkip, buildPagination } from "../utils/pagination.util";
@@ -73,7 +74,7 @@ class NotificationService {
 		});
 
 		if (!notification) {
-			throw new AppError("Notification not found", 404);
+			throw new AppError("Notification not found", HttpStatus.NOT_FOUND);
 		}
 
 		if (notification.isRead) {
@@ -100,7 +101,7 @@ class NotificationService {
 		});
 
 		if (!notification) {
-			throw new AppError("Notification not found", 404);
+			throw new AppError("Notification not found", HttpStatus.NOT_FOUND);
 		}
 
 		await prisma.notification.delete({ where: { id: notificationId } });
@@ -152,7 +153,7 @@ class NotificationService {
 		});
 
 		if (users.length === 0) {
-			throw new Error("No active users to notify");
+			throw new AppError("No active users to notify", HttpStatus.NOT_FOUND);
 		}
 
 		const type = data.type ?? NotificationType.SYSTEM;
@@ -198,7 +199,7 @@ class NotificationService {
 		});
 
 		if (validUsers.length === 0) {
-			throw new Error("No valid users found for the provided IDs");
+			throw new AppError("No valid users found for the provided IDs", HttpStatus.NOT_FOUND);
 		}
 
 		const type = notifData.type ?? NotificationType.SYSTEM;

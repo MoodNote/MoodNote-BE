@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "../config/database";
 import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 import { handlePrismaError } from "../utils/prisma.util";
 import { calcSkip, buildPagination } from "../utils/pagination.util";
 
@@ -120,7 +121,7 @@ class AdminMusicService {
 			select: { id: true },
 		});
 		if (artists.length !== artistIds.length) {
-			throw new AppError("One or more artists not found", 404);
+			throw new AppError("One or more artists not found", HttpStatus.NOT_FOUND);
 		}
 
 		// Verify all genreIds exist (if provided)
@@ -130,7 +131,7 @@ class AdminMusicService {
 				select: { id: true },
 			});
 			if (genres.length !== genreIds.length) {
-				throw new AppError("One or more genres not found", 404);
+				throw new AppError("One or more genres not found", HttpStatus.NOT_FOUND);
 			}
 		}
 
@@ -189,7 +190,7 @@ class AdminMusicService {
 			where: { id },
 			include: this.trackInclude,
 		});
-		if (!track) throw new AppError("Track not found", 404);
+		if (!track) throw new AppError("Track not found", HttpStatus.NOT_FOUND);
 		return this.formatTrack(track);
 	}
 
@@ -198,7 +199,7 @@ class AdminMusicService {
 
 		// Verify exists
 		const existing = await prisma.track.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Track not found", 404);
+		if (!existing) throw new AppError("Track not found", HttpStatus.NOT_FOUND);
 
 		// Verify artistIds if provided
 		if (artistIds) {
@@ -207,7 +208,7 @@ class AdminMusicService {
 				select: { id: true },
 			});
 			if (artists.length !== artistIds.length) {
-				throw new AppError("One or more artists not found", 404);
+				throw new AppError("One or more artists not found", HttpStatus.NOT_FOUND);
 			}
 		}
 
@@ -218,7 +219,7 @@ class AdminMusicService {
 				select: { id: true },
 			});
 			if (genres.length !== genreIds.length) {
-				throw new AppError("One or more genres not found", 404);
+				throw new AppError("One or more genres not found", HttpStatus.NOT_FOUND);
 			}
 		}
 
@@ -253,7 +254,7 @@ class AdminMusicService {
 
 	async deleteTrack(id: string) {
 		const existing = await prisma.track.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Track not found", 404);
+		if (!existing) throw new AppError("Track not found", HttpStatus.NOT_FOUND);
 
 		try {
 			await prisma.track.delete({ where: { id } });
@@ -309,7 +310,7 @@ class AdminMusicService {
 			where: { id },
 			include: { _count: { select: { tracks: true } } },
 		});
-		if (!artist) throw new AppError("Artist not found", 404);
+		if (!artist) throw new AppError("Artist not found", HttpStatus.NOT_FOUND);
 		return {
 			id: artist.id,
 			name: artist.name,
@@ -321,7 +322,7 @@ class AdminMusicService {
 
 	async updateArtist(id: string, data: { name: string }) {
 		const existing = await prisma.artist.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Artist not found", 404);
+		if (!existing) throw new AppError("Artist not found", HttpStatus.NOT_FOUND);
 		try {
 			return await prisma.artist.update({ where: { id }, data });
 		} catch (error) {
@@ -331,7 +332,7 @@ class AdminMusicService {
 
 	async deleteArtist(id: string) {
 		const existing = await prisma.artist.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Artist not found", 404);
+		if (!existing) throw new AppError("Artist not found", HttpStatus.NOT_FOUND);
 		try {
 			await prisma.artist.delete({ where: { id } });
 		} catch (error) {
@@ -383,13 +384,13 @@ class AdminMusicService {
 			where: { id },
 			include: { _count: { select: { tracks: true } } },
 		});
-		if (!genre) throw new AppError("Genre not found", 404);
+		if (!genre) throw new AppError("Genre not found", HttpStatus.NOT_FOUND);
 		return { id: genre.id, name: genre.name, trackCount: genre._count.tracks };
 	}
 
 	async updateGenre(id: string, data: { name: string }) {
 		const existing = await prisma.genre.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Genre not found", 404);
+		if (!existing) throw new AppError("Genre not found", HttpStatus.NOT_FOUND);
 		try {
 			return await prisma.genre.update({ where: { id }, data });
 		} catch (error) {
@@ -399,7 +400,7 @@ class AdminMusicService {
 
 	async deleteGenre(id: string) {
 		const existing = await prisma.genre.findUnique({ where: { id } });
-		if (!existing) throw new AppError("Genre not found", 404);
+		if (!existing) throw new AppError("Genre not found", HttpStatus.NOT_FOUND);
 		try {
 			await prisma.genre.delete({ where: { id } });
 		} catch (error) {

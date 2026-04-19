@@ -1,18 +1,7 @@
 import { Request, Response } from "express";
 import { adminMusicService } from "../services/admin.music.service";
-import { AppError } from "../utils/app-error.util";
-
-const handleError = (error: unknown, res: Response, fallback: string) => {
-	if (error instanceof AppError) {
-		return res
-			.status(error.statusCode)
-			.json({ success: false, message: error.message });
-	}
-	res.status(400).json({
-		success: false,
-		message: error instanceof Error ? error.message : fallback,
-	});
-};
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const adminMusicController = {
 	// ── Tracks ─────────────────────────────────────────────────────────────
@@ -20,7 +9,7 @@ export const adminMusicController = {
 	async createTrack(req: Request, res: Response) {
 		try {
 			const track = await adminMusicService.createTrack(req.body);
-			res.status(201).json({
+			res.status(HttpStatus.CREATED).json({
 				success: true,
 				message: "Track created successfully",
 				data: { track },
@@ -44,7 +33,7 @@ export const adminMusicController = {
 				genreId,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Tracks retrieved successfully",
 				data: result,
@@ -57,7 +46,7 @@ export const adminMusicController = {
 	async getTrack(req: Request, res: Response) {
 		try {
 			const track = await adminMusicService.getTrack(req.params.id);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Track retrieved successfully",
 				data: { track },
@@ -73,7 +62,7 @@ export const adminMusicController = {
 				req.params.id,
 				req.body,
 			);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Track updated successfully",
 				data: { track },
@@ -86,7 +75,7 @@ export const adminMusicController = {
 	async deleteTrack(req: Request, res: Response) {
 		try {
 			await adminMusicService.deleteTrack(req.params.id);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Track deleted successfully",
 			});
@@ -100,7 +89,7 @@ export const adminMusicController = {
 	async createArtist(req: Request, res: Response) {
 		try {
 			const artist = await adminMusicService.createArtist(req.body);
-			res.status(201).json({
+			res.status(HttpStatus.CREATED).json({
 				success: true,
 				message: "Artist created successfully",
 				data: { artist },
@@ -123,7 +112,7 @@ export const adminMusicController = {
 				search,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Artists retrieved successfully",
 				data: result,
@@ -136,7 +125,7 @@ export const adminMusicController = {
 	async getArtist(req: Request, res: Response) {
 		try {
 			const artist = await adminMusicService.getArtist(req.params.id);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Artist retrieved successfully",
 				data: { artist },
@@ -152,7 +141,7 @@ export const adminMusicController = {
 				req.params.id,
 				req.body,
 			);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Artist updated successfully",
 				data: { artist },
@@ -165,7 +154,7 @@ export const adminMusicController = {
 	async deleteArtist(req: Request, res: Response) {
 		try {
 			await adminMusicService.deleteArtist(req.params.id);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Artist deleted successfully",
 			});
@@ -179,7 +168,7 @@ export const adminMusicController = {
 	async createGenre(req: Request, res: Response) {
 		try {
 			const genre = await adminMusicService.createGenre(req.body);
-			res.status(201).json({
+			res.status(HttpStatus.CREATED).json({
 				success: true,
 				message: "Genre created successfully",
 				data: { genre },
@@ -202,7 +191,7 @@ export const adminMusicController = {
 				search,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Genres retrieved successfully",
 				data: result,
@@ -215,7 +204,7 @@ export const adminMusicController = {
 	async getGenre(req: Request, res: Response) {
 		try {
 			const genre = await adminMusicService.getGenre(req.params.id);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Genre retrieved successfully",
 				data: { genre },
@@ -231,7 +220,7 @@ export const adminMusicController = {
 				req.params.id,
 				req.body,
 			);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Genre updated successfully",
 				data: { genre },
@@ -244,7 +233,7 @@ export const adminMusicController = {
 	async deleteGenre(req: Request, res: Response) {
 		try {
 			await adminMusicService.deleteGenre(req.params.id);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Genre deleted successfully",
 			});
@@ -258,7 +247,7 @@ export const adminMusicController = {
 	async getStats(req: Request, res: Response) {
 		try {
 			const stats = await adminMusicService.getMusicStats();
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Music stats retrieved successfully",
 				data: { stats },

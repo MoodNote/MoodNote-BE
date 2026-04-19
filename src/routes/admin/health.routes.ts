@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import prisma from "../../config/database";
+import { HttpStatus } from "../../utils/http-status.util";
 
 const router = Router();
 
@@ -17,7 +18,7 @@ router.get("/", async (_req: Request, res: Response) => {
 	const mem = process.memoryUsage();
 	const isHealthy = dbStatus.status === "ok";
 
-	res.status(200).json({
+	res.status(HttpStatus.OK).json({
 		success: true,
 		message: isHealthy ? "Service is healthy" : "Service is degraded",
 		data: {

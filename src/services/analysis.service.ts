@@ -1,6 +1,7 @@
 import { EmotionType, MusicStatus } from "@prisma/client";
 import prisma from "../config/database";
 import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 import { decryptAndExtractText } from "../utils/entry.util";
 import { aiService, type AiDiaryAnalysis } from "./ai.service";
 import { pipelineService } from "./pipeline.service";
@@ -176,13 +177,13 @@ class AnalysisService {
       where: { id: entryId },
     });
 
-    if (!entry) throw new AppError("Entry not found", 404);
-    if (entry.userId !== userId) throw new AppError("Access denied", 403);
+    if (!entry) throw new AppError("Entry not found", HttpStatus.NOT_FOUND);
+    if (entry.userId !== userId) throw new AppError("Access denied", HttpStatus.FORBIDDEN);
     if (entry.analysisStatus === "PROCESSING") {
-      throw new AppError("Analysis already in progress", 409);
+      throw new AppError("Analysis already in progress", HttpStatus.CONFLICT);
     }
     if (entry.analysisStatus === "COMPLETED") {
-      throw new AppError("Entry already analyzed", 409);
+      throw new AppError("Entry already analyzed", HttpStatus.CONFLICT);
     }
 
     // Fire-and-forget
@@ -200,9 +201,9 @@ class AnalysisService {
    */
   async forceReanalyze(entryId: string): Promise<void> {
     const entry = await prisma.moodEntry.findUnique({ where: { id: entryId } });
-    if (!entry) throw new AppError("Entry not found", 404);
+    if (!entry) throw new AppError("Entry not found", HttpStatus.NOT_FOUND);
     if (entry.analysisStatus === "PROCESSING") {
-      throw new AppError("Analysis already in progress", 409);
+      throw new AppError("Analysis already in progress", HttpStatus.CONFLICT);
     }
 
     // Reset COMPLETED back to PENDING so runAnalysis will pick it up

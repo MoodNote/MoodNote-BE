@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import routes from "./routes";
 import { generalRateLimiter } from "./middlewares/rateLimit.middleware";
+import { HttpStatus } from "./utils/http-status.util";
 
 const app = express();
 
@@ -27,7 +28,7 @@ app.use("/api", routes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
-	res.status(404).json({
+	res.status(HttpStatus.NOT_FOUND).json({
 		success: false,
 		message: "Route not found",
 	});
@@ -36,7 +37,7 @@ app.use((_req: Request, res: Response) => {
 // Global error handler
 app.use((err: any, _req: Request, res: Response, _next: any) => {
 	console.error("Error:", err);
-	res.status(err.status || 500).json({
+	res.status(err.statusCode || err.status || HttpStatus.INTERNAL_SERVER_ERROR).json({
 		success: false,
 		message: err.message || "Internal server error",
 	});

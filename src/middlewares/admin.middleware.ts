@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { jwtUtil } from "../utils/jwt.util";
 import prisma from "../config/database";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const authenticateAdmin = async (
 	req: Request,
@@ -10,7 +11,7 @@ export const authenticateAdmin = async (
 	try {
 		const authHeader = req.headers.authorization;
 		if (!authHeader || !authHeader.startsWith("Bearer ")) {
-			return res.status(401).json({
+			return res.status(HttpStatus.UNAUTHORIZED).json({
 				success: false,
 				message: "Admin access token is required",
 			});
@@ -33,28 +34,28 @@ export const authenticateAdmin = async (
 		});
 
 		if (!user) {
-			return res.status(401).json({
+			return res.status(HttpStatus.UNAUTHORIZED).json({
 				success: false,
 				message: "User not found",
 			});
 		}
 
 		if (!user.isActive) {
-			return res.status(403).json({
+			return res.status(HttpStatus.FORBIDDEN).json({
 				success: false,
 				message: "Account is deactivated",
 			});
 		}
 
 		if (!user.isEmailVerified) {
-			return res.status(403).json({
+			return res.status(HttpStatus.FORBIDDEN).json({
 				success: false,
 				message: "Email not verified",
 			});
 		}
 
 		if (user.role !== "ADMIN") {
-			return res.status(403).json({
+			return res.status(HttpStatus.FORBIDDEN).json({
 				success: false,
 				message: "Forbidden: Admin access required",
 			});
@@ -69,18 +70,18 @@ export const authenticateAdmin = async (
 		next();
 	} catch (error: any) {
 		if (error.name === "TokenExpiredError") {
-			return res.status(401).json({
+			return res.status(HttpStatus.UNAUTHORIZED).json({
 				success: false,
 				message: "Admin access token has expired",
 			});
 		}
 		if (error.name === "JsonWebTokenError") {
-			return res.status(401).json({
+			return res.status(HttpStatus.UNAUTHORIZED).json({
 				success: false,
 				message: "Invalid admin access token",
 			});
 		}
-		return res.status(500).json({
+		return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
 			success: false,
 			message: "Authentication failed",
 		});

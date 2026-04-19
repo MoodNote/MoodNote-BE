@@ -1,6 +1,7 @@
 import { RecommendationMode, MusicStatus, Prisma } from "@prisma/client";
 import prisma from "../config/database";
 import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 import {
 	resolveCentroid,
 	runMirrorMode,
@@ -121,7 +122,7 @@ class MusicService {
 		const candidates = await this.fetchCandidateTracks();
 
 		if (candidates.length === 0) {
-			throw new AppError("No eligible tracks available for recommendation", 503);
+			throw new AppError("No eligible tracks available for recommendation", HttpStatus.SERVICE_UNAVAILABLE);
 		}
 
 		const centroid = resolveCentroid({
@@ -162,16 +163,16 @@ class MusicService {
 			include: { emotionAnalysis: true },
 		});
 
-		if (!entry) throw new AppError("Entry not found", 404);
-		if (entry.userId !== userId) throw new AppError("Access denied", 403);
+		if (!entry) throw new AppError("Entry not found", HttpStatus.NOT_FOUND);
+		if (entry.userId !== userId) throw new AppError("Access denied", HttpStatus.FORBIDDEN);
 		if (entry.analysisStatus !== "COMPLETED") {
 			throw new AppError(
 				"Emotion analysis is not completed for this entry",
-				409,
+				HttpStatus.CONFLICT,
 			);
 		}
 		if (!entry.emotionAnalysis) {
-			throw new AppError("Emotion analysis data not found", 404);
+			throw new AppError("Emotion analysis data not found", HttpStatus.NOT_FOUND);
 		}
 
 		// SHIFT mode for negative sentiment (< -0.2), MIRROR otherwise
@@ -195,7 +196,7 @@ class MusicService {
 		if (entry.musicStatus === MusicStatus.FAILED) {
 			throw new AppError(
 				"Music generation failed for this entry. Use the refresh endpoint to retry.",
-				503,
+				HttpStatus.SERVICE_UNAVAILABLE,
 			);
 		}
 

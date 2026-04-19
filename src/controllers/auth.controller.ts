@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
 import { authService } from "../services/auth.service";
-
-const errMsg = (error: unknown, fallback: string) =>
-	error instanceof Error ? error.message : fallback;
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const authController = {
 	/**
@@ -18,16 +17,13 @@ export const authController = {
 				name,
 			});
 
-			res.status(201).json({
+			res.status(HttpStatus.CREATED).json({
 				success: true,
 				message: result.message,
 				data: { user: result.user },
 			});
 		} catch (error) {
-			res.status(400).json({
-				success: false,
-				message: errMsg(error, "Registration failed"),
-			});
+			handleError(error, res, "Registration failed");
 		}
 	},
 
@@ -39,15 +35,12 @@ export const authController = {
 			const { email, otp } = req.body;
 			const result = await authService.verifyEmail(email, otp);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: result.message,
 			});
 		} catch (error) {
-			res.status(400).json({
-				success: false,
-				message: errMsg(error, "Email verification failed"),
-			});
+			handleError(error, res, "Email verification failed");
 		}
 	},
 
@@ -59,15 +52,12 @@ export const authController = {
 			const { email } = req.body;
 			const result = await authService.resendVerificationOtp(email);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: result.message,
 			});
 		} catch (error) {
-			res.status(400).json({
-				success: false,
-				message: errMsg(error, "Failed to resend verification OTP"),
-			});
+			handleError(error, res, "Failed to resend verification OTP");
 		}
 	},
 
@@ -79,16 +69,13 @@ export const authController = {
 			const { identifier, password } = req.body;
 			const result = await authService.login(identifier, password);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Login successful",
 				data: result,
 			});
 		} catch (error) {
-			res.status(401).json({
-				success: false,
-				message: errMsg(error, "Login failed"),
-			});
+			handleError(error, res, "Login failed");
 		}
 	},
 
@@ -100,16 +87,13 @@ export const authController = {
 			const { refreshToken } = req.body;
 			const result = await authService.refreshAccessToken(refreshToken);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Token refreshed successfully",
 				data: result,
 			});
 		} catch (error) {
-			res.status(401).json({
-				success: false,
-				message: errMsg(error, "Token refresh failed"),
-			});
+			handleError(error, res, "Token refresh failed");
 		}
 	},
 
@@ -123,7 +107,7 @@ export const authController = {
 		} catch {
 			// Intentionally swallowed — always return 200 to prevent user enumeration
 		} finally {
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message:
 					"If an account exists with this email, a password reset link has been sent.",
@@ -141,7 +125,7 @@ export const authController = {
 		} catch {
 			// Intentionally swallowed — always return 200 to prevent user enumeration
 		} finally {
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message:
 					"If an account exists with this email, a new OTP has been sent.",
@@ -157,15 +141,12 @@ export const authController = {
 			const { email, otp } = req.body;
 			const result = await authService.verifyResetOtp(email, otp);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: result.message,
 			});
 		} catch (error) {
-			res.status(400).json({
-				success: false,
-				message: errMsg(error, "OTP verification failed"),
-			});
+			handleError(error, res, "OTP verification failed");
 		}
 	},
 
@@ -177,15 +158,12 @@ export const authController = {
 			const { email, password } = req.body;
 			const result = await authService.resetPassword(email, password);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: result.message,
 			});
 		} catch (error) {
-			res.status(400).json({
-				success: false,
-				message: errMsg(error, "Password reset failed"),
-			});
+			handleError(error, res, "Password reset failed");
 		}
 	},
 
@@ -203,15 +181,12 @@ export const authController = {
 				newPassword,
 			);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: result.message,
 			});
 		} catch (error) {
-			res.status(400).json({
-				success: false,
-				message: errMsg(error, "Password change failed"),
-			});
+			handleError(error, res, "Password change failed");
 		}
 	},
 
@@ -223,15 +198,12 @@ export const authController = {
 			const { refreshToken, deviceToken } = req.body;
 			const result = await authService.logout(refreshToken, deviceToken);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: result.message,
 			});
 		} catch (error) {
-			res.status(400).json({
-				success: false,
-				message: errMsg(error, "Logout failed"),
-			});
+			handleError(error, res, "Logout failed");
 		}
 	},
 };

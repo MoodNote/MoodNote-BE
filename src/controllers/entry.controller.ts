@@ -1,18 +1,7 @@
 import { Request, Response } from "express";
 import { entryService } from "../services/entry.service";
-import { AppError } from "../utils/app-error.util";
-
-const handleError = (error: unknown, res: Response, fallback: string) => {
-	if (error instanceof AppError) {
-		return res
-			.status(error.statusCode)
-			.json({ success: false, message: error.message });
-	}
-	res.status(400).json({
-		success: false,
-		message: error instanceof Error ? error.message : fallback,
-	});
-};
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const entryController = {
 	/**
@@ -31,7 +20,7 @@ export const entryController = {
 				isPrivate,
 			});
 
-			res.status(201).json({
+			res.status(HttpStatus.CREATED).json({
 				success: true,
 				message: "Entry created successfully",
 				data: { entry },
@@ -64,7 +53,7 @@ export const entryController = {
 					| undefined,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Entries retrieved successfully",
 				data: result,
@@ -84,7 +73,7 @@ export const entryController = {
 				req.params.id,
 			);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Entry retrieved successfully",
 				data: { entry },
@@ -111,7 +100,7 @@ export const entryController = {
 				},
 			);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Entry updated successfully",
 				data: { entry },
@@ -131,7 +120,7 @@ export const entryController = {
 				req.user!.userId,
 				ids,
 			);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Entries deleted successfully",
 				data: result,
@@ -151,7 +140,7 @@ export const entryController = {
 				req.params.id,
 			);
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: result.message,
 			});

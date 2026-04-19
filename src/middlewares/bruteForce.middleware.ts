@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../config/database";
 import { authConfig } from "../config/auth.config";
+import { HttpStatus } from "../utils/http-status.util";
 
 /**
  * Check if user account is locked due to failed login attempts
@@ -47,7 +48,7 @@ export const checkAccountLockout = async (
 			const remainingTime = Math.ceil(
 				(user.lockoutUntil.getTime() - Date.now()) / 1000 / 60,
 			);
-			return res.status(429).json({
+			return res.status(HttpStatus.TOO_MANY_REQUESTS).json({
 				success: false,
 				message: `Account is locked. Please try again in ${remainingTime} minutes`,
 			});

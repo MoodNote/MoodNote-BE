@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { adminStatsService } from "../services/admin.stats.service";
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const adminStatsController = {
 	/**
@@ -9,19 +11,13 @@ export const adminStatsController = {
 	async getOverview(_req: Request, res: Response) {
 		try {
 			const data = await adminStatsService.getOverview();
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Overview statistics retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			res.status(500).json({
-				success: false,
-				message:
-					error instanceof Error
-						? error.message
-						: "Failed to retrieve overview statistics",
-			});
+			handleError(error, res, "Failed to retrieve overview statistics");
 		}
 	},
 
@@ -33,19 +29,13 @@ export const adminStatsController = {
 		try {
 			const limit = req.query.limit ? Number(req.query.limit) : 10;
 			const data = await adminStatsService.getMusicStats(limit);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Music statistics retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			res.status(500).json({
-				success: false,
-				message:
-					error instanceof Error
-						? error.message
-						: "Failed to retrieve music statistics",
-			});
+			handleError(error, res, "Failed to retrieve music statistics");
 		}
 	},
 };

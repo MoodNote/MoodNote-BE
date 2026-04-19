@@ -4,6 +4,8 @@ import { jwtUtil } from "../utils/jwt.util";
 import { tokenUtil } from "../utils/token.util";
 import { emailService } from "./email.service";
 import { authConfig } from "../config/auth.config";
+import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 class AuthService {
 	/**
@@ -21,7 +23,7 @@ class AuthService {
 		});
 
 		if (existingUser) {
-			throw new Error("Email already registered");
+			throw new AppError("Email already registered", HttpStatus.CONFLICT);
 		}
 
 		// Check if username already exists
@@ -30,19 +32,20 @@ class AuthService {
 		});
 
 		if (existingUsername) {
-			throw new Error("Username already taken");
+			throw new AppError("Username already taken", HttpStatus.CONFLICT);
 		}
 
 		// Validate password strength
 		const passwordValidation = passwordUtil.validate(data.password);
 		if (!passwordValidation.isValid) {
-			throw new Error(passwordValidation.errors.join(", "));
+			throw new AppError(passwordValidation.errors.join(", "), HttpStatus.BAD_REQUEST);
 		}
 
 		// Check for common passwords
 		if (passwordUtil.isCommonPassword(data.password)) {
-			throw new Error(
+			throw new AppError(
 				"Password is too common, please choose a stronger password",
+				HttpStatus.BAD_REQUEST,
 			);
 		}
 
@@ -108,11 +111,11 @@ class AuthService {
 		});
 
 		if (!user) {
-			throw new Error("Invalid email or OTP");
+			throw new AppError("Invalid email or OTP", HttpStatus.BAD_REQUEST);
 		}
 
 		if (user.isEmailVerified) {
-			throw new Error("Email is already verified");
+			throw new AppError("Email is already verified", HttpStatus.CONFLICT);
 		}
 
 		const hashedOtp = tokenUtil.hashToken(otp);
@@ -126,7 +129,7 @@ class AuthService {
 		});
 
 		if (!verification) {
-			throw new Error("Invalid or expired OTP");
+			throw new AppError("Invalid or expired OTP", HttpStatus.BAD_REQUEST);
 		}
 
 		// Update user and mark token as used
@@ -162,7 +165,7 @@ class AuthService {
 		}
 
 		if (user.isEmailVerified) {
-			throw new Error("Email is already verified");
+			throw new AppError("Email is already verified", HttpStatus.CONFLICT);
 		}
 
 		// Invalidate old tokens
@@ -210,13 +213,14 @@ class AuthService {
 
 		// Don't reveal if user exists (prevent enumeration)
 		if (!user) {
-			throw new Error("Invalid email/username or password");
+			throw new AppError("Invalid email/username or password", HttpStatus.UNAUTHORIZED);
 		}
 
 		// Check if account is locked
 		if (user.lockoutUntil && new Date() < user.lockoutUntil) {
-			throw new Error(
+			throw new AppError(
 				"Account is locked due to multiple failed login attempts",
+				HttpStatus.TOO_MANY_REQUESTS,
 			);
 		}
 
@@ -243,17 +247,17 @@ class AuthService {
 				data: updateData,
 			});
 
-			throw new Error("Invalid email/username or password");
+			throw new AppError("Invalid email/username or password", HttpStatus.UNAUTHORIZED);
 		}
 
 		// Check if email is verified
 		if (!user.isEmailVerified) {
-			throw new Error("Please verify your email before logging in");
+			throw new AppError("Please verify your email before logging in", HttpStatus.FORBIDDEN);
 		}
 
 		// Check if account is active
 		if (!user.isActive) {
-			throw new Error("Account is deactivated");
+			throw new AppError("Account is deactivated", HttpStatus.FORBIDDEN);
 		}
 
 		// Reset failed login attempts and update last login
@@ -303,7 +307,7 @@ class AuthService {
 		try {
 			jwtUtil.verifyRefreshToken(refreshToken);
 		} catch {
-			throw new Error("Invalid or expired refresh token");
+			throw new AppError("Invalid or expired refresh token", HttpStatus.UNAUTHORIZED);
 		}
 
 		// Check if refresh token exists in database and is not revoked
@@ -313,15 +317,15 @@ class AuthService {
 		});
 
 		if (!storedToken) {
-			throw new Error("Refresh token not found");
+			throw new AppError("Refresh token not found", HttpStatus.UNAUTHORIZED);
 		}
 
 		if (storedToken.isRevoked) {
-			throw new Error("Refresh token has been revoked");
+			throw new AppError("Refresh token has been revoked", HttpStatus.UNAUTHORIZED);
 		}
 
 		if (new Date() > storedToken.expiresAt) {
-			throw new Error("Refresh token has expired");
+			throw new AppError("Refresh token has expired", HttpStatus.UNAUTHORIZED);
 		}
 
 		// Generate new access token
@@ -437,7 +441,7 @@ class AuthService {
 		});
 
 		if (!user) {
-			throw new Error("Invalid email or OTP");
+			throw new AppError("Invalid email or OTP", HttpStatus.BAD_REQUEST);
 		}
 
 		const hashedOtp = tokenUtil.hashToken(otp);
@@ -451,7 +455,7 @@ class AuthService {
 		});
 
 		if (!resetRecord) {
-			throw new Error("Invalid or expired OTP");
+			throw new AppError("Invalid or expired OTP", HttpStatus.BAD_REQUEST);
 		}
 
 		await prisma.passwordReset.update({
@@ -473,7 +477,7 @@ class AuthService {
 		});
 
 		if (!user) {
-			throw new Error("Invalid request");
+			throw new AppError("Invalid request", HttpStatus.BAD_REQUEST);
 		}
 
 		const resetRecord = await prisma.passwordReset.findFirst({
@@ -486,20 +490,22 @@ class AuthService {
 		});
 
 		if (!resetRecord) {
-			throw new Error(
+			throw new AppError(
 				"No verified OTP found. Please verify your OTP first.",
+				HttpStatus.BAD_REQUEST,
 			);
 		}
 
 		// Validate new password
 		const passwordValidation = passwordUtil.validate(newPassword);
 		if (!passwordValidation.isValid) {
-			throw new Error(passwordValidation.errors.join(", "));
+			throw new AppError(passwordValidation.errors.join(", "), HttpStatus.BAD_REQUEST);
 		}
 
 		if (passwordUtil.isCommonPassword(newPassword)) {
-			throw new Error(
+			throw new AppError(
 				"Password is too common, please choose a stronger password",
+				HttpStatus.BAD_REQUEST,
 			);
 		}
 
@@ -541,7 +547,7 @@ class AuthService {
 		});
 
 		if (!user) {
-			throw new Error("User not found");
+			throw new AppError("User not found", HttpStatus.NOT_FOUND);
 		}
 
 		// Verify current password
@@ -551,18 +557,19 @@ class AuthService {
 		);
 
 		if (!isCurrentPasswordValid) {
-			throw new Error("Current password is incorrect");
+			throw new AppError("Current password is incorrect", HttpStatus.BAD_REQUEST);
 		}
 
 		// Validate new password
 		const passwordValidation = passwordUtil.validate(newPassword);
 		if (!passwordValidation.isValid) {
-			throw new Error(passwordValidation.errors.join(", "));
+			throw new AppError(passwordValidation.errors.join(", "), HttpStatus.BAD_REQUEST);
 		}
 
 		if (passwordUtil.isCommonPassword(newPassword)) {
-			throw new Error(
+			throw new AppError(
 				"Password is too common, please choose a stronger password",
+				HttpStatus.BAD_REQUEST,
 			);
 		}
 
@@ -572,8 +579,9 @@ class AuthService {
 			user.password,
 		);
 		if (isSamePassword) {
-			throw new Error(
+			throw new AppError(
 				"New password must be different from current password",
+				HttpStatus.BAD_REQUEST,
 			);
 		}
 

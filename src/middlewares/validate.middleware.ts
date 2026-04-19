@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodType, ZodError } from "zod";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const validate = (schema: ZodType<any>) => {
 	return async (req: Request, res: Response, next: NextFunction) => {
@@ -16,7 +17,7 @@ export const validate = (schema: ZodType<any>) => {
 					field: err.path.join("."),
 					message: err.message,
 				}));
-				return res.status(400).json({
+				return res.status(HttpStatus.BAD_REQUEST).json({
 					success: false,
 					message: "Validation failed",
 					errors,

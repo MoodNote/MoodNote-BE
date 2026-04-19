@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import { aiService } from "../services/ai.service";
 import { analysisService } from "../services/analysis.service";
-import { AppError } from "../utils/app-error.util";
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const adminAiController = {
   /**
@@ -13,7 +14,7 @@ export const adminAiController = {
     const healthy = await aiService.checkHealth();
     const latencyMs = Date.now() - start;
 
-    res.status(200).json({
+    res.status(HttpStatus.OK).json({
       success: true,
       message: healthy ? "AI service is reachable" : "AI service is unreachable",
       data: {
@@ -36,13 +37,13 @@ export const adminAiController = {
     const latencyMs = Date.now() - start;
 
     if (!result) {
-      return res.status(503).json({
+      return res.status(HttpStatus.SERVICE_UNAVAILABLE).json({
         success: false,
         message: "AI service unavailable or returned an error",
       });
     }
 
-    res.status(200).json({
+    res.status(HttpStatus.OK).json({
       success: true,
       message: "Analysis complete",
       data: { result, latencyMs },
@@ -57,17 +58,12 @@ export const adminAiController = {
   async forceAnalyzeEntry(req: Request, res: Response) {
     try {
       await analysisService.forceReanalyze(req.params.id);
-      res.status(202).json({
+      res.status(HttpStatus.ACCEPTED).json({
         success: true,
         message: "Re-analysis started",
       });
     } catch (error) {
-      if (error instanceof AppError) {
-        return res
-          .status(error.statusCode)
-          .json({ success: false, message: error.message });
-      }
-      res.status(500).json({ success: false, message: "Internal server error" });
+      handleError(error, res, "Internal server error");
     }
   },
 
@@ -78,7 +74,7 @@ export const adminAiController = {
    */
   async retryFailed(_req: Request, res: Response) {
     const queued = await analysisService.retryFailed();
-    res.status(202).json({
+    res.status(HttpStatus.ACCEPTED).json({
       success: true,
       message: `Queued ${queued} failed ${queued === 1 ? "entry" : "entries"} for re-analysis`,
       data: { queued },
@@ -91,7 +87,7 @@ export const adminAiController = {
    */
   async getStats(_req: Request, res: Response) {
     const stats = await analysisService.getStats();
-    res.status(200).json({
+    res.status(HttpStatus.OK).json({
       success: true,
       message: "Analysis statistics",
       data: stats,

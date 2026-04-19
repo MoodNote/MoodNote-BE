@@ -2,6 +2,8 @@ import prisma from "../config/database";
 import { passwordUtil } from "../utils/password.util";
 import { jwtUtil } from "../utils/jwt.util";
 import { authConfig } from "../config/auth.config";
+import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 class AdminAuthService {
 	async adminLogin(email: string, password: string) {
@@ -20,19 +22,19 @@ class AdminAuthService {
 		});
 
 		if (!user) {
-			throw new Error("Invalid credentials");
+			throw new AppError("Invalid credentials", HttpStatus.UNAUTHORIZED);
 		}
 
 		if (user.role !== "ADMIN") {
-			throw new Error("Forbidden: Admin access required");
+			throw new AppError("Forbidden: Admin access required", HttpStatus.FORBIDDEN);
 		}
 
 		if (!user.isActive) {
-			throw new Error("Account is deactivated");
+			throw new AppError("Account is deactivated", HttpStatus.FORBIDDEN);
 		}
 
 		if (!user.isEmailVerified) {
-			throw new Error("Email not verified");
+			throw new AppError("Email not verified", HttpStatus.FORBIDDEN);
 		}
 
 		const isPasswordValid = await passwordUtil.compare(
@@ -40,7 +42,7 @@ class AdminAuthService {
 			user.password,
 		);
 		if (!isPasswordValid) {
-			throw new Error("Invalid credentials");
+			throw new AppError("Invalid credentials", HttpStatus.UNAUTHORIZED);
 		}
 
 		const accessToken = jwtUtil.generateAdminAccessToken(
@@ -76,7 +78,7 @@ class AdminAuthService {
 		try {
 			jwtUtil.verifyAdminRefreshToken(refreshToken);
 		} catch {
-			throw new Error("Invalid or expired refresh token");
+			throw new AppError("Invalid or expired refresh token", HttpStatus.UNAUTHORIZED);
 		}
 
 		const stored = await prisma.refreshToken.findUnique({
@@ -84,11 +86,11 @@ class AdminAuthService {
 			include: { user: true },
 		});
 
-		if (!stored) throw new Error("Refresh token not found");
-		if (stored.isRevoked) throw new Error("Refresh token has been revoked");
-		if (new Date() > stored.expiresAt) throw new Error("Refresh token has expired");
-		if (stored.user.role !== "ADMIN") throw new Error("Forbidden: Admin access required");
-		if (!stored.user.isActive) throw new Error("Account is deactivated");
+		if (!stored) throw new AppError("Refresh token not found", HttpStatus.UNAUTHORIZED);
+		if (stored.isRevoked) throw new AppError("Refresh token has been revoked", HttpStatus.UNAUTHORIZED);
+		if (new Date() > stored.expiresAt) throw new AppError("Refresh token has expired", HttpStatus.UNAUTHORIZED);
+		if (stored.user.role !== "ADMIN") throw new AppError("Forbidden: Admin access required", HttpStatus.FORBIDDEN);
+		if (!stored.user.isActive) throw new AppError("Account is deactivated", HttpStatus.FORBIDDEN);
 
 		const newAccessToken = jwtUtil.generateAdminAccessToken(
 			stored.user.id,

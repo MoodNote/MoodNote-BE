@@ -1,4 +1,6 @@
 import prisma from "../config/database";
+import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 class UserService {
 	private readonly profileSelect = {
@@ -17,7 +19,7 @@ class UserService {
 			select: this.profileSelect,
 		});
 
-		if (!user) throw new Error("User not found");
+		if (!user) throw new AppError("User not found", HttpStatus.NOT_FOUND);
 
 		return user;
 	}
@@ -31,7 +33,7 @@ class UserService {
 				where: { username: data.username, NOT: { id: userId } },
 				select: { id: true },
 			});
-			if (existing) throw new Error("Username already taken");
+			if (existing) throw new AppError("Username already taken", HttpStatus.CONFLICT);
 		}
 
 		const updated = await prisma.user.update({

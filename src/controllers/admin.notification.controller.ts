@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { notificationService } from "../services/notification.service";
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const adminNotificationController = {
 	async broadcast(req: Request, res: Response) {
@@ -12,16 +14,13 @@ export const adminNotificationController = {
 				metadata,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Notification sent successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to send notification",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to send notification");
 		}
 	},
 
@@ -36,16 +35,13 @@ export const adminNotificationController = {
 				metadata,
 			});
 
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Notification sent successfully",
 				data: result,
 			});
-		} catch (error: any) {
-			res.status(400).json({
-				success: false,
-				message: error.message || "Failed to send notification",
-			});
+		} catch (error) {
+			handleError(error, res, "Failed to send notification");
 		}
 	},
 };

@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { statsService } from "../services/stats.service";
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const statsController = {
 	/**
@@ -13,17 +15,13 @@ export const statsController = {
 				startDate: req.query.startDate as string | undefined,
 				endDate: req.query.endDate as string | undefined,
 			});
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Emotion chart data retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			res.status(500).json({
-				success: false,
-				message:
-					error instanceof Error ? error.message : "Failed to retrieve emotion chart",
-			});
+			handleError(error, res, "Failed to retrieve emotion chart");
 		}
 	},
 
@@ -39,17 +37,13 @@ export const statsController = {
 				endDate: req.query.endDate as string | undefined,
 				limit: req.query.limit ? Number(req.query.limit) : undefined,
 			});
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Keywords retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			res.status(500).json({
-				success: false,
-				message:
-					error instanceof Error ? error.message : "Failed to retrieve keywords",
-			});
+			handleError(error, res, "Failed to retrieve keywords");
 		}
 	},
 
@@ -62,17 +56,13 @@ export const statsController = {
 			const data = await statsService.getPatterns(req.user!.userId, {
 				range: req.query.range as string | undefined,
 			});
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Patterns retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			res.status(500).json({
-				success: false,
-				message:
-					error instanceof Error ? error.message : "Failed to retrieve patterns",
-			});
+			handleError(error, res, "Failed to retrieve patterns");
 		}
 	},
 
@@ -83,17 +73,13 @@ export const statsController = {
 	async getSummary(req: Request, res: Response) {
 		try {
 			const data = await statsService.getSummary(req.user!.userId);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Summary retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			res.status(500).json({
-				success: false,
-				message:
-					error instanceof Error ? error.message : "Failed to retrieve summary",
-			});
+			handleError(error, res, "Failed to retrieve summary");
 		}
 	},
 
@@ -106,19 +92,13 @@ export const statsController = {
 			const data = await statsService.getWeeklyChart(req.user!.userId, {
 				startDate: req.query.startDate as string | undefined,
 			});
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Weekly chart retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			res.status(500).json({
-				success: false,
-				message:
-					error instanceof Error
-						? error.message
-						: "Failed to retrieve weekly chart",
-			});
+			handleError(error, res, "Failed to retrieve weekly chart");
 		}
 	},
 
@@ -132,24 +112,13 @@ export const statsController = {
 				year: Number(req.query.year),
 				month: Number(req.query.month),
 			});
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Monthly calendar retrieved successfully",
 				data,
 			});
 		} catch (error) {
-			const status =
-				error instanceof Error &&
-				error.message.includes("future")
-					? 400
-					: 500;
-			res.status(status).json({
-				success: false,
-				message:
-					error instanceof Error
-						? error.message
-						: "Failed to retrieve monthly calendar",
-			});
+			handleError(error, res, "Failed to retrieve monthly calendar");
 		}
 	},
 };

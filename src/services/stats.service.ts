@@ -1,5 +1,7 @@
 import prisma from "../config/database";
 import { countStreakFromToday } from "../utils/date.util";
+import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 // ─────────────────────────────────────────
 // Types
@@ -436,7 +438,7 @@ class StatsService {
 		const currentYear = now.getUTCFullYear();
 		const currentMonth = now.getUTCMonth() + 1;
 		if (year > currentYear || (year === currentYear && month > currentMonth)) {
-			throw new Error("Cannot retrieve calendar for future months");
+			throw new AppError("Cannot retrieve calendar for future months", HttpStatus.BAD_REQUEST);
 		}
 
 		// new Date(UTC(year, month, 0)) = last day of the month

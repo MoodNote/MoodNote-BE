@@ -1,18 +1,7 @@
 import { Request, Response } from "express";
 import { musicService } from "../services/music.service";
-import { AppError } from "../utils/app-error.util";
-
-const handleError = (error: unknown, res: Response, fallback: string) => {
-	if (error instanceof AppError) {
-		return res
-			.status(error.statusCode)
-			.json({ success: false, message: error.message });
-	}
-	res.status(400).json({
-		success: false,
-		message: error instanceof Error ? error.message : fallback,
-	});
-};
+import { handleError } from "../utils/response.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 export const musicController = {
 	/**
@@ -26,13 +15,13 @@ export const musicController = {
 				req.params.entryId,
 			);
 			if (!recommendation) {
-				return res.status(202).json({
+				return res.status(HttpStatus.ACCEPTED).json({
 					success: true,
 					message: "Recommendation is being prepared, please try again shortly",
 					data: null,
 				});
 			}
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Recommendation retrieved successfully",
 				data: { recommendation },
@@ -52,7 +41,7 @@ export const musicController = {
 				req.user!.userId,
 				req.params.entryId,
 			);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Recommendation refreshed successfully",
 				data: { recommendation },
@@ -72,7 +61,7 @@ export const musicController = {
 				req.user!.userId,
 				Number(req.query.limit) || 5,
 			);
-			res.status(200).json({
+			res.status(HttpStatus.OK).json({
 				success: true,
 				message: "Recent recommendation retrieved successfully",
 				data,
