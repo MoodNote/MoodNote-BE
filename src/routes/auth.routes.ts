@@ -14,28 +14,28 @@ const router = Router();
 // Public routes with rate limiting
 router.post(
 	"/register",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.register),
 	authController.register,
 );
 
 router.post(
 	"/verify-email",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.verifyEmail),
 	authController.verifyEmail,
 );
 
 router.post(
 	"/resend-verification",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.resendVerification),
 	authController.resendVerificationOtp,
 );
 
 router.post(
 	"/login",
-	// loginRateLimiter,
+	loginRateLimiter,
 	checkAccountLockout,
 	validate(authValidators.login),
 	authController.login,
@@ -43,35 +43,35 @@ router.post(
 
 router.post(
 	"/refresh",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.refreshToken),
 	authController.refreshToken,
 );
 
 router.post(
 	"/forgot-password",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.forgotPassword),
 	authController.forgotPassword,
 );
 
 router.post(
 	"/resend-reset-otp",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.resendResetOtp),
 	authController.resendResetOtp,
 );
 
 router.post(
 	"/verify-reset-otp",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.verifyResetOtp),
 	authController.verifyResetOtp,
 );
 
 router.post(
 	"/reset-password",
-	// authRateLimiter,
+	authRateLimiter,
 	validate(authValidators.resetPassword),
 	authController.resetPassword,
 );

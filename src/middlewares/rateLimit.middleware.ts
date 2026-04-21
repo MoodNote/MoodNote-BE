@@ -1,12 +1,18 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
 import { authConfig } from "../config/auth.config";
+import { redis } from "../config/redis";
 
-/**
- * General API rate limiter: 100 requests per minute per IP
- */
+const redisStore = (prefix: string) =>
+	new RedisStore({
+		prefix,
+		sendCommand: (...args: string[]) => (redis as any).call(...args),
+	});
+
 export const generalRateLimiter = rateLimit({
 	windowMs: authConfig.rateLimit.windowMs,
 	max: authConfig.rateLimit.max,
+	store: redisStore("rl:general:"),
 	message: {
 		success: false,
 		message: "Too many requests, please try again later",
@@ -15,12 +21,10 @@ export const generalRateLimiter = rateLimit({
 	legacyHeaders: false,
 });
 
-/**
- * Strict rate limiter for auth endpoints: 5 requests per 15 minutes per IP per route
- */
 export const authRateLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
+	windowMs: 15 * 60 * 1000,
 	max: 5,
+	store: redisStore("rl:auth:"),
 	keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? "")}:${req.path}`,
 	message: {
 		success: false,
@@ -30,13 +34,11 @@ export const authRateLimiter = rateLimit({
 	legacyHeaders: false,
 });
 
-/**
- * Login rate limiter: 5 attempts per 15 minutes per IP
- */
 export const loginRateLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000,
 	max: 5,
-	skipSuccessfulRequests: true, // Don't count successful logins
+	store: redisStore("rl:login:"),
+	skipSuccessfulRequests: true,
 	message: {
 		success: false,
 		message: "Too many login attempts, please try again after 15 minutes",
@@ -45,12 +47,10 @@ export const loginRateLimiter = rateLimit({
 	legacyHeaders: false,
 });
 
-/**
- * Broadcast rate limiter: 10 requests per minute per IP (admin only)
- */
 export const broadcastRateLimiter = rateLimit({
-	windowMs: 60 * 1000, // 1 minute
+	windowMs: 60 * 1000,
 	max: 10,
+	store: redisStore("rl:broadcast:"),
 	message: {
 		success: false,
 		message: "Too many broadcast requests, please try again later",

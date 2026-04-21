@@ -1,4 +1,5 @@
 import prisma from "../config/database";
+import { redis } from "../config/redis";
 import { passwordUtil } from "../utils/password.util";
 import { jwtUtil } from "../utils/jwt.util";
 import { tokenUtil } from "../utils/token.util";
@@ -71,26 +72,11 @@ class AuthService {
 			},
 		});
 
-		// Generate OTP for email verification
+		// Generate and store OTP in Redis (overwrites any existing OTP for this user)
 		const otp = tokenUtil.generateOTP();
 		const hashedOtp = tokenUtil.hashToken(otp);
-		const expiresAt = new Date(
-			Date.now() + authConfig.email.verificationExpiry,
-		);
-
-		// Invalidate any existing unused tokens
-		await prisma.emailVerification.updateMany({
-			where: { userId: user.id, isUsed: false },
-			data: { isUsed: true },
-		});
-
-		await prisma.emailVerification.create({
-			data: {
-				userId: user.id,
-				token: hashedOtp,
-				expiresAt,
-			},
-		});
+		const ttlSecs = Math.floor(authConfig.email.verificationExpiry / 1000);
+		await redis.set(`otp:email_verify:${user.id}`, hashedOtp, "EX", ttlSecs);
 
 		// Send OTP verification email
 		await emailService.sendVerificationEmail(user.email, user.name, otp);
@@ -119,28 +105,17 @@ class AuthService {
 		}
 
 		const hashedOtp = tokenUtil.hashToken(otp);
-		const verification = await prisma.emailVerification.findFirst({
-			where: {
-				userId: user.id,
-				token: hashedOtp,
-				isUsed: false,
-				expiresAt: { gt: new Date() },
-			},
-		});
+		const storedHash = await redis.get(`otp:email_verify:${user.id}`);
 
-		if (!verification) {
+		if (!storedHash || storedHash !== hashedOtp) {
 			throw new AppError("Invalid or expired OTP", HttpStatus.BAD_REQUEST);
 		}
 
-		// Update user and mark token as used
-		await prisma.$transaction([
+		await Promise.all([
+			redis.del(`otp:email_verify:${user.id}`),
 			prisma.user.update({
 				where: { id: user.id },
 				data: { isEmailVerified: true },
-			}),
-			prisma.emailVerification.update({
-				where: { id: verification.id },
-				data: { isUsed: true },
 			}),
 		]);
 
@@ -168,26 +143,11 @@ class AuthService {
 			throw new AppError("Email is already verified", HttpStatus.CONFLICT);
 		}
 
-		// Invalidate old tokens
-		await prisma.emailVerification.updateMany({
-			where: { userId: user.id, isUsed: false },
-			data: { isUsed: true },
-		});
-
-		// Generate new OTP
+		// Overwrite existing OTP in Redis with a new one
 		const otp = tokenUtil.generateOTP();
 		const hashedOtp = tokenUtil.hashToken(otp);
-		const expiresAt = new Date(
-			Date.now() + authConfig.email.verificationExpiry,
-		);
-
-		await prisma.emailVerification.create({
-			data: {
-				userId: user.id,
-				token: hashedOtp,
-				expiresAt,
-			},
-		});
+		const ttlSecs = Math.floor(authConfig.email.verificationExpiry / 1000);
+		await redis.set(`otp:email_verify:${user.id}`, hashedOtp, "EX", ttlSecs);
 
 		await emailService.sendVerificationEmail(user.email, user.name, otp);
 
@@ -216,14 +176,6 @@ class AuthService {
 			throw new AppError("Invalid email/username or password", HttpStatus.UNAUTHORIZED);
 		}
 
-		// Check if account is locked
-		if (user.lockoutUntil && new Date() < user.lockoutUntil) {
-			throw new AppError(
-				"Account is locked due to multiple failed login attempts",
-				HttpStatus.TOO_MANY_REQUESTS,
-			);
-		}
-
 		// Verify password
 		const isPasswordValid = await passwordUtil.compare(
 			password,
@@ -231,22 +183,12 @@ class AuthService {
 		);
 
 		if (!isPasswordValid) {
-			// Increment failed login attempts
-			const newFailedAttempts = user.failedLoginAttempts + 1;
-			const updateData: any = { failedLoginAttempts: newFailedAttempts };
-
-			// Lock account if max attempts reached
-			if (newFailedAttempts >= authConfig.security.maxLoginAttempts) {
-				updateData.lockoutUntil = new Date(
-					Date.now() + authConfig.security.lockoutDuration,
-				);
+			const bruteKey = `brute:${user.id}`;
+			const lockoutSecs = Math.floor(authConfig.security.lockoutDuration / 1000);
+			const newAttempts = await redis.incr(bruteKey);
+			if (newAttempts === 1 || newAttempts >= authConfig.security.maxLoginAttempts) {
+				await redis.expire(bruteKey, lockoutSecs);
 			}
-
-			await prisma.user.update({
-				where: { id: user.id },
-				data: updateData,
-			});
-
 			throw new AppError("Invalid email/username or password", HttpStatus.UNAUTHORIZED);
 		}
 
@@ -260,14 +202,11 @@ class AuthService {
 			throw new AppError("Account is deactivated", HttpStatus.FORBIDDEN);
 		}
 
-		// Reset failed login attempts and update last login
+		// Clear lockout and update last login
+		await redis.del(`brute:${user.id}`);
 		await prisma.user.update({
 			where: { id: user.id },
-			data: {
-				failedLoginAttempts: 0,
-				lockoutUntil: null,
-				lastLoginAt: new Date(),
-			},
+			data: { lastLoginAt: new Date() },
 		});
 
 		// Generate tokens
@@ -348,7 +287,6 @@ class AuthService {
 		});
 
 		// Always return success to prevent user enumeration
-		// Even if user doesn't exist, return same response
 		if (!user) {
 			return {
 				message:
@@ -356,27 +294,11 @@ class AuthService {
 			};
 		}
 
-		// Generate OTP
+		// Generate and store OTP in Redis (overwrites any existing reset OTP)
 		const otp = tokenUtil.generateOTP();
 		const hashedOtp = tokenUtil.hashToken(otp);
-		const expiresAt = new Date(
-			Date.now() + authConfig.email.passwordResetExpiry,
-		);
-
-		// Invalidate all previous password reset tokens
-		await prisma.passwordReset.updateMany({
-			where: { userId: user.id, isUsed: false },
-			data: { isUsed: true },
-		});
-
-		// Create new password reset token
-		await prisma.passwordReset.create({
-			data: {
-				userId: user.id,
-				token: hashedOtp,
-				expiresAt,
-			},
-		});
+		const ttlSecs = Math.floor(authConfig.email.passwordResetExpiry / 1000);
+		await redis.set(`otp:pwd_reset:${user.id}`, hashedOtp, "EX", ttlSecs);
 
 		// Send password reset email with OTP
 		await emailService.sendPasswordResetEmail(user.email, otp, user.name);
@@ -403,26 +325,11 @@ class AuthService {
 			};
 		}
 
-		// Invalidate all previous unused reset tokens
-		await prisma.passwordReset.updateMany({
-			where: { userId: user.id, isUsed: false },
-			data: { isUsed: true },
-		});
-
-		// Generate new OTP
+		// Overwrite existing reset OTP in Redis with a new one
 		const otp = tokenUtil.generateOTP();
 		const hashedOtp = tokenUtil.hashToken(otp);
-		const expiresAt = new Date(
-			Date.now() + authConfig.email.passwordResetExpiry,
-		);
-
-		await prisma.passwordReset.create({
-			data: {
-				userId: user.id,
-				token: hashedOtp,
-				expiresAt,
-			},
-		});
+		const ttlSecs = Math.floor(authConfig.email.passwordResetExpiry / 1000);
+		await redis.set(`otp:pwd_reset:${user.id}`, hashedOtp, "EX", ttlSecs);
 
 		await emailService.sendPasswordResetEmail(user.email, otp, user.name);
 
@@ -445,23 +352,18 @@ class AuthService {
 		}
 
 		const hashedOtp = tokenUtil.hashToken(otp);
-		const resetRecord = await prisma.passwordReset.findFirst({
-			where: {
-				userId: user.id,
-				token: hashedOtp,
-				isUsed: false,
-				expiresAt: { gt: new Date() },
-			},
-		});
+		const storedHash = await redis.get(`otp:pwd_reset:${user.id}`);
 
-		if (!resetRecord) {
+		if (!storedHash || storedHash !== hashedOtp) {
 			throw new AppError("Invalid or expired OTP", HttpStatus.BAD_REQUEST);
 		}
 
-		await prisma.passwordReset.update({
-			where: { id: resetRecord.id },
-			data: { isVerified: true },
-		});
+		// Delete the OTP and set the verified flag (same TTL as the original OTP)
+		const ttlSecs = Math.floor(authConfig.email.passwordResetExpiry / 1000);
+		await Promise.all([
+			redis.del(`otp:pwd_reset:${user.id}`),
+			redis.set(`otp:pwd_reset_verified:${user.id}`, "1", "EX", ttlSecs),
+		]);
 
 		return {
 			message: "OTP verified. You can now reset your password.",
@@ -480,16 +382,9 @@ class AuthService {
 			throw new AppError("Invalid request", HttpStatus.BAD_REQUEST);
 		}
 
-		const resetRecord = await prisma.passwordReset.findFirst({
-			where: {
-				userId: user.id,
-				isVerified: true,
-				isUsed: false,
-				expiresAt: { gt: new Date() },
-			},
-		});
+		const isVerified = await redis.get(`otp:pwd_reset_verified:${user.id}`);
 
-		if (!resetRecord) {
+		if (!isVerified) {
 			throw new AppError(
 				"No verified OTP found. Please verify your OTP first.",
 				HttpStatus.BAD_REQUEST,
@@ -512,20 +407,19 @@ class AuthService {
 		// Hash new password
 		const hashedPassword = await passwordUtil.hash(newPassword);
 
-		// Update password, mark token as used, and invalidate all refresh tokens
-		await prisma.$transaction([
-			prisma.user.update({
-				where: { id: user.id },
-				data: { password: hashedPassword },
-			}),
-			prisma.passwordReset.update({
-				where: { id: resetRecord.id },
-				data: { isUsed: true },
-			}),
-			prisma.refreshToken.updateMany({
-				where: { userId: user.id },
-				data: { isRevoked: true },
-			}),
+		// Clear verified flag and update password + invalidate all refresh tokens atomically
+		await Promise.all([
+			redis.del(`otp:pwd_reset_verified:${user.id}`),
+			prisma.$transaction([
+				prisma.user.update({
+					where: { id: user.id },
+					data: { password: hashedPassword },
+				}),
+				prisma.refreshToken.updateMany({
+					where: { userId: user.id },
+					data: { isRevoked: true },
+				}),
+			]),
 		]);
 
 		return {
