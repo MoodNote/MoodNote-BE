@@ -1,6 +1,7 @@
 import "dotenv/config";
 import app from "./app";
 import prisma from "./config/database";
+import { redis } from "./config/redis";
 import { startReminderJob } from "./jobs/reminder.job";
 import { analysisService } from "./services/analysis.service";
 
@@ -32,6 +33,7 @@ async function startServer() {
 // Graceful shutdown
 process.on("SIGTERM", async () => {
 	await prisma.$disconnect();
+	await redis.quit();
 	process.exit(0);
 });
 
