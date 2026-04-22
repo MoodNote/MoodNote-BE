@@ -6,6 +6,7 @@ import { HttpStatus } from "../utils/http-status.util";
 import { decryptEntry, extractPlainText } from "../utils/entry.util";
 import { Prisma } from "@prisma/client";
 import { pipelineService } from "./pipeline.service";
+import { statsService } from "./stats.service";
 import type { Delta, EntryPayload } from "../types/entry.types";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
@@ -100,6 +101,9 @@ class EntryService {
 
 		// Fire-and-forget AI analysis — response is not blocked
 		pipelineService.onEntryNeedsAnalysis(entry.id);
+		statsService.recomputeAndSaveStreaks(userId).catch((err) =>
+			console.warn("[Entry] Streak update failed:", err instanceof Error ? err.message : String(err)),
+		);
 
 		return this.formatEntryResponse(entry, payload, true);
 	}
@@ -298,6 +302,9 @@ class EntryService {
 		const result = await prisma.moodEntry.deleteMany({
 			where: { id: { in: ids }, userId },
 		});
+		statsService.recomputeAndSaveStreaks(userId).catch((err) =>
+			console.warn("[Entry] Streak update failed:", err instanceof Error ? err.message : String(err)),
+		);
 		return { deletedCount: result.count };
 	}
 
@@ -315,6 +322,9 @@ class EntryService {
 		}
 
 		await prisma.moodEntry.delete({ where: { id: entryId } });
+		statsService.recomputeAndSaveStreaks(userId).catch((err) =>
+			console.warn("[Entry] Streak update failed:", err instanceof Error ? err.message : String(err)),
+		);
 
 		return { message: "Entry deleted successfully" };
 	}

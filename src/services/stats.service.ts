@@ -312,37 +312,60 @@ class StatsService {
 	// Home: Summary (streaks)
 	// ─────────────────────────────────────────
 
-	async getSummary(userId: string) {
+	async recomputeAndSaveStreaks(userId: string): Promise<void> {
+		const cutoff = new Date();
+		cutoff.setUTCDate(cutoff.getUTCDate() - 365);
+		cutoff.setUTCHours(0, 0, 0, 0);
+
 		const entries = await prisma.moodEntry.findMany({
-			where: { userId },
+			where: { userId, entryDate: { gte: cutoff } },
 			select: {
 				entryDate: true,
 				analysisStatus: true,
 				emotionAnalysis: { select: { primaryEmotion: true } },
 			},
-			orderBy: { entryDate: "desc" },
 		});
 
-		// Build per-date maps
 		const writingDates = new Set<string>();
 		const emotionByDate = new Map<string, string>();
-
 		for (const entry of entries) {
 			const dateStr = entry.entryDate.toISOString().split("T")[0];
 			writingDates.add(dateStr);
-			if (
-				!emotionByDate.has(dateStr) &&
-				entry.analysisStatus === "COMPLETED" &&
-				entry.emotionAnalysis
-			) {
+			if (!emotionByDate.has(dateStr) && entry.analysisStatus === "COMPLETED" && entry.emotionAnalysis) {
 				emotionByDate.set(dateStr, entry.emotionAnalysis.primaryEmotion);
 			}
 		}
 
+		const writingStreak = countStreakFromToday((d) => writingDates.has(d));
+		const smileStreak = countStreakFromToday((d) => emotionByDate.get(d) === "Enjoyment");
+		const sadStreak = countStreakFromToday((d) => emotionByDate.get(d) === "Sadness");
+
+		await prisma.userStats.upsert({
+			where: { userId },
+			create: { userId, writingStreak, smileStreak, sadStreak },
+			update: { writingStreak, smileStreak, sadStreak },
+		});
+	}
+
+	async getSummary(userId: string) {
+		const stats = await prisma.userStats.findUnique({ where: { userId } });
+		const today = new Date().toISOString().split("T")[0];
+
+		if (stats && stats.updatedAt.toISOString().split("T")[0] === today) {
+			return {
+				writingStreak: stats.writingStreak,
+				smileStreak: stats.smileStreak,
+				sadStreak: stats.sadStreak,
+			};
+		}
+
+		// No row yet, or row is from a previous day (midnight passed) — recompute
+		await this.recomputeAndSaveStreaks(userId);
+		const fresh = await prisma.userStats.findUnique({ where: { userId } });
 		return {
-			writingStreak: countStreakFromToday((d) => writingDates.has(d)),
-			smileStreak: countStreakFromToday((d) => emotionByDate.get(d) === "Enjoyment"),
-			sadStreak: countStreakFromToday((d) => emotionByDate.get(d) === "Sadness"),
+			writingStreak: fresh?.writingStreak ?? 0,
+			smileStreak: fresh?.smileStreak ?? 0,
+			sadStreak: fresh?.sadStreak ?? 0,
 		};
 	}
 

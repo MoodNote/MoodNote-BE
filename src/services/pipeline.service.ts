@@ -2,6 +2,7 @@ import { MusicStatus } from "@prisma/client";
 import prisma from "../config/database";
 import { analysisService } from "./analysis.service";
 import { musicService } from "./music.service";
+import { statsService } from "./stats.service";
 
 class PipelineService {
   /**
@@ -23,6 +24,12 @@ class PipelineService {
    * Marks musicStatus = FAILED on the entry if generation throws.
    */
   onAnalysisCompleted(userId: string, entryId: string): void {
+    statsService.recomputeAndSaveStreaks(userId).catch((err) =>
+      console.warn(
+        "[Pipeline] Streak update failed:",
+        err instanceof Error ? err.message : String(err),
+      ),
+    );
     musicService.autoGenerateRecommendation(userId, entryId).catch(async (err) => {
       console.error(
         `[Pipeline] Music generation failed for entry ${entryId}:`,
