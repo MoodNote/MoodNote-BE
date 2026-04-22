@@ -7,8 +7,20 @@ import { analysisService } from "./services/analysis.service";
 
 const PORT = process.env.PORT || 3000;
 
+function validateEnv() {
+	const key = process.env.ENCRYPTION_KEY;
+	if (!key || !/^[0-9a-fA-F]{64}$/.test(key)) {
+		console.error(
+			"FATAL: ENCRYPTION_KEY must be a 64-character hex string (32 bytes for AES-256).",
+		);
+		process.exit(1);
+	}
+}
+
 async function startServer() {
 	try {
+		validateEnv();
+
 		// Test database connection
 		await prisma.$connect();
 		console.log("✓ Database connected");

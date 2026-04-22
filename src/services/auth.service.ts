@@ -482,11 +482,17 @@ class AuthService {
 		// Hash new password
 		const hashedPassword = await passwordUtil.hash(newPassword);
 
-		// Update password and invalidate all OTHER refresh tokens (keep current session)
-		await prisma.user.update({
-			where: { id: userId },
-			data: { password: hashedPassword },
-		});
+		// Update password and revoke all refresh tokens (force re-login on all devices)
+		await prisma.$transaction([
+			prisma.user.update({
+				where: { id: userId },
+				data: { password: hashedPassword },
+			}),
+			prisma.refreshToken.updateMany({
+				where: { userId },
+				data: { isRevoked: true },
+			}),
+		]);
 
 		await emailService.sendPasswordChangedEmail(user.email, user.name);
 

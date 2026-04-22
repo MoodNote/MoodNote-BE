@@ -28,6 +28,8 @@ class MusicService {
 				danceability: { not: null },
 				tempo: { not: null },
 			},
+			orderBy: { popularity: "desc" },
+			take: 500,
 			include: {
 				artists: {
 					include: { artist: { select: { name: true } } },
