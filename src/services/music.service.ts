@@ -77,7 +77,9 @@ class MusicService {
 						track: {
 							include: {
 								artists: {
-									include: { artist: { select: { name: true } } },
+									include: {
+										artist: { select: { name: true } },
+									},
 								},
 							},
 						},
@@ -104,7 +106,9 @@ class MusicService {
 					danceability: rt.track.danceability,
 					acousticness: rt.track.acousticness,
 					tempo: rt.track.tempo,
-					artists: rt.track.artists.map((ta) => ({ name: ta.artist.name })),
+					artists: rt.track.artists.map((ta) => ({
+						name: ta.artist.name,
+					})),
 				},
 			})),
 		};
@@ -122,7 +126,10 @@ class MusicService {
 		const candidates = await this.fetchCandidateTracks();
 
 		if (candidates.length === 0) {
-			throw new AppError("No eligible tracks available for recommendation", HttpStatus.SERVICE_UNAVAILABLE);
+			throw new AppError(
+				"No eligible tracks available for recommendation",
+				HttpStatus.SERVICE_UNAVAILABLE,
+			);
 		}
 
 		const centroid = resolveCentroid({
@@ -145,11 +152,19 @@ class MusicService {
 			);
 		}
 
-		const recommendationId = await this.persistRecommendation(userId, entryId, mode, orderedTracks);
+		const recommendationId = await this.persistRecommendation(
+			userId,
+			entryId,
+			mode,
+			orderedTracks,
+		);
 
 		// Mark music as completed — best-effort, entry may have been deleted
 		await prisma.moodEntry
-			.update({ where: { id: entryId }, data: { musicStatus: MusicStatus.COMPLETED } })
+			.update({
+				where: { id: entryId },
+				data: { musicStatus: MusicStatus.COMPLETED },
+			})
 			.catch(() => {});
 
 		return recommendationId;
@@ -157,14 +172,18 @@ class MusicService {
 
 	// ── Entry Validation Helper ───────────────────────────────────────────────────
 
-	private async validateEntryForRecommendation(userId: string, entryId: string) {
+	private async validateEntryForRecommendation(
+		userId: string,
+		entryId: string,
+	) {
 		const entry = await prisma.moodEntry.findUnique({
 			where: { id: entryId },
 			include: { emotionAnalysis: true },
 		});
 
 		if (!entry) throw new AppError("Entry not found", HttpStatus.NOT_FOUND);
-		if (entry.userId !== userId) throw new AppError("Access denied", HttpStatus.FORBIDDEN);
+		if (entry.userId !== userId)
+			throw new AppError("Access denied", HttpStatus.FORBIDDEN);
 		if (entry.analysisStatus !== "COMPLETED") {
 			throw new AppError(
 				"Emotion analysis is not completed for this entry",
@@ -172,7 +191,10 @@ class MusicService {
 			);
 		}
 		if (!entry.emotionAnalysis) {
-			throw new AppError("Emotion analysis data not found", HttpStatus.NOT_FOUND);
+			throw new AppError(
+				"Emotion analysis data not found",
+				HttpStatus.NOT_FOUND,
+			);
 		}
 
 		// SHIFT mode for negative sentiment (< -0.2), MIRROR otherwise
@@ -189,8 +211,13 @@ class MusicService {
 	async getOrCreateRecommendation(
 		userId: string,
 		entryId: string,
-	): Promise<Awaited<ReturnType<typeof this.fetchFormattedRecommendation>> | null> {
-		const { entry, mode } = await this.validateEntryForRecommendation(userId, entryId);
+	): Promise<Awaited<
+		ReturnType<typeof this.fetchFormattedRecommendation>
+	> | null> {
+		const { entry, mode } = await this.validateEntryForRecommendation(
+			userId,
+			entryId,
+		);
 
 		// FAILED means auto-generation threw — tell the client to use refresh to retry
 		if (entry.musicStatus === MusicStatus.FAILED) {
@@ -241,7 +268,9 @@ class MusicService {
 						track: {
 							include: {
 								artists: {
-									include: { artist: { select: { name: true } } },
+									include: {
+										artist: { select: { name: true } },
+									},
 								},
 							},
 						},
@@ -264,8 +293,16 @@ class MusicService {
 						id: rt.track.id,
 						trackName: rt.track.trackName,
 						albumName: rt.track.albumName,
+						popularity: rt.track.popularity,
 						durationMs: rt.track.durationMs,
-						artists: rt.track.artists.map((ta) => ({ name: ta.artist.name })),
+						valence: rt.track.valence,
+						energy: rt.track.energy,
+						danceability: rt.track.danceability,
+						acousticness: rt.track.acousticness,
+						tempo: rt.track.tempo,
+						artists: rt.track.artists.map((ta) => ({
+							name: ta.artist.name,
+						})),
 					},
 				})),
 			},
@@ -280,7 +317,10 @@ class MusicService {
 		userId: string,
 		entryId: string,
 	): Promise<void> {
-		const { analysis, mode } = await this.validateEntryForRecommendation(userId, entryId);
+		const { analysis, mode } = await this.validateEntryForRecommendation(
+			userId,
+			entryId,
+		);
 		await prisma.moodEntry.update({
 			where: { id: entryId },
 			data: { musicStatus: MusicStatus.GENERATING },
