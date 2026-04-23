@@ -20,10 +20,11 @@ export function buildPagination(
 	page: number,
 	limit: number,
 ): PaginationMeta {
+	const safeLimit = Math.max(1, limit);
 	return {
 		total,
 		page,
-		limit,
-		totalPages: Math.ceil(total / limit),
+		limit: safeLimit,
+		totalPages: Math.ceil(total / safeLimit),
 	};
 }

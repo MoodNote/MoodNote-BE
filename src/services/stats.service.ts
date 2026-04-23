@@ -258,8 +258,9 @@ class StatsService {
 		}));
 
 		for (const entry of entries) {
-			const emotion = entry.emotionAnalysis!.primaryEmotion as keyof EmotionCounts;
-			const score = entry.emotionAnalysis!.sentimentScore;
+			if (!entry.emotionAnalysis) continue;
+			const emotion = entry.emotionAnalysis.primaryEmotion as keyof EmotionCounts;
+			const score = entry.emotionAnalysis.sentimentScore;
 
 			// Day of week (use entryDate — the day the mood belongs to)
 			const dayIdx = entry.entryDate.getUTCDay();

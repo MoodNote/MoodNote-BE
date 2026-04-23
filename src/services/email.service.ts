@@ -1,5 +1,7 @@
 import { emailTransporter, emailConfig } from "../config/email.config";
 import { authConfig } from "../config/auth.config";
+import { AppError } from "../utils/app-error.util";
+import { HttpStatus } from "../utils/http-status.util";
 
 class EmailService {
 	/**
@@ -30,7 +32,14 @@ class EmailService {
       `,
 		};
 
-		await emailTransporter.sendMail(mailOptions);
+		try {
+			await emailTransporter.sendMail(mailOptions);
+		} catch {
+			throw new AppError(
+				"Failed to send verification email. Please try again later.",
+				HttpStatus.INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 	/**
@@ -61,7 +70,14 @@ class EmailService {
       `,
 		};
 
-		await emailTransporter.sendMail(mailOptions);
+		try {
+			await emailTransporter.sendMail(mailOptions);
+		} catch {
+			throw new AppError(
+				"Failed to send password reset email. Please try again later.",
+				HttpStatus.INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 	/**
@@ -83,7 +99,14 @@ class EmailService {
       `,
 		};
 
-		await emailTransporter.sendMail(mailOptions);
+		try {
+			await emailTransporter.sendMail(mailOptions);
+		} catch {
+			throw new AppError(
+				"Failed to send password changed notification.",
+				HttpStatus.INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 }
 

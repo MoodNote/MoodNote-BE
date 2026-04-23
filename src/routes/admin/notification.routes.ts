@@ -14,6 +14,7 @@ router.post(
 );
 router.post(
 	"/send",
+	broadcastRateLimiter,
 	validate(adminValidators.sendToUsers),
 	adminNotificationController.sendToUsers,
 );

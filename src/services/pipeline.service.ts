@@ -30,12 +30,12 @@ class PipelineService {
         err instanceof Error ? err.message : String(err),
       ),
     );
-    musicService.autoGenerateRecommendation(userId, entryId).catch(async (err) => {
+    musicService.autoGenerateRecommendation(userId, entryId).catch((err) => {
       console.error(
         `[Pipeline] Music generation failed for entry ${entryId}:`,
         err instanceof Error ? err.message : String(err),
       );
-      await prisma.moodEntry
+      prisma.moodEntry
         .update({ where: { id: entryId }, data: { musicStatus: MusicStatus.FAILED } })
         .catch(() => {}); // Swallow if entry was deleted
     });

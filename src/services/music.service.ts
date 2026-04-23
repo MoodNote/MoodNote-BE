@@ -319,16 +319,23 @@ class MusicService {
 		userId: string,
 		entryId: string,
 	): Promise<void> {
-		const { analysis, mode } = await this.validateEntryForRecommendation(
-			userId,
-			entryId,
-		);
-		await prisma.moodEntry.update({
-			where: { id: entryId },
-			data: { musicStatus: MusicStatus.GENERATING },
-		});
-		await this.generateAndPersist(userId, entryId, mode, analysis, false);
-		// musicStatus → COMPLETED is set inside generateAndPersist
+		try {
+			const { analysis, mode } = await this.validateEntryForRecommendation(
+				userId,
+				entryId,
+			);
+			await prisma.moodEntry.update({
+				where: { id: entryId },
+				data: { musicStatus: MusicStatus.GENERATING },
+			});
+			await this.generateAndPersist(userId, entryId, mode, analysis, false);
+			// musicStatus → COMPLETED is set inside generateAndPersist
+		} catch (err) {
+			await prisma.moodEntry
+				.update({ where: { id: entryId }, data: { musicStatus: MusicStatus.FAILED } })
+				.catch(() => {});
+			throw err;
+		}
 	}
 }
 
