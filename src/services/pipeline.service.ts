@@ -36,7 +36,13 @@ class PipelineService {
         err instanceof Error ? err.message : String(err),
       );
       prisma.moodEntry
-        .update({ where: { id: entryId }, data: { musicStatus: MusicStatus.FAILED } })
+        .update({
+          where: { id: entryId },
+          data: {
+            musicStatus: MusicStatus.FAILED,
+            musicErrorReason: err instanceof Error ? err.message : String(err),
+          },
+        })
         .catch(() => {}); // Swallow if entry was deleted
     });
   }

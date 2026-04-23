@@ -1,4 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { AppError } from "./app-error.util";
+import { HttpStatus } from "./http-status.util";
 
 const ALGORITHM = "aes-256-gcm";
 
@@ -24,14 +26,18 @@ export function decrypt(
 	ivHex: string,
 	keyHex: string,
 ): string {
-	const key = Buffer.from(keyHex, "hex");
-	const iv = Buffer.from(ivHex, "hex");
-	const buf = Buffer.from(ciphertext, "base64");
-	const authTag = buf.subarray(0, 16);
-	const encrypted = buf.subarray(16);
-	const decipher = createDecipheriv(ALGORITHM, key, iv);
-	decipher.setAuthTag(authTag);
-	return decipher.update(encrypted) + decipher.final("utf8");
+	try {
+		const key = Buffer.from(keyHex, "hex");
+		const iv = Buffer.from(ivHex, "hex");
+		const buf = Buffer.from(ciphertext, "base64");
+		const authTag = buf.subarray(0, 16);
+		const encrypted = buf.subarray(16);
+		const decipher = createDecipheriv(ALGORITHM, key, iv);
+		decipher.setAuthTag(authTag);
+		return decipher.update(encrypted) + decipher.final("utf8");
+	} catch {
+		throw new AppError("Failed to decrypt content", HttpStatus.INTERNAL_SERVER_ERROR);
+	}
 }
 
 export const encryptionUtil = { encrypt, decrypt };

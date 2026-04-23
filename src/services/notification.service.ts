@@ -255,41 +255,36 @@ class NotificationService {
 
 		if (settings.length === 0) return;
 
+		const userIds = settings.map((s) => s.userId);
 		const todayStart = startOfDay(now);
 		const todayEnd = endOfDay(now);
+
+		// Batch both checks — 2 queries instead of O(2n) individual ones
+		const [entriesWrittenToday, remindersAlreadySent] = await Promise.all([
+			prisma.moodEntry.findMany({
+				where: { userId: { in: userIds }, entryDate: { gte: todayStart, lte: todayEnd } },
+				select: { userId: true },
+			}),
+			prisma.notification.findMany({
+				where: {
+					userId: { in: userIds },
+					type: NotificationType.REMINDER,
+					createdAt: { gte: todayStart, lte: todayEnd },
+				},
+				select: { userId: true },
+			}),
+		]);
+
+		const wroteToday = new Set(entriesWrittenToday.map((e) => e.userId));
+		const alreadyNotified = new Set(remindersAlreadySent.map((n) => n.userId));
 
 		const reminderTitle = "Đừng quên viết nhật ký hôm nay 📝";
 		const reminderMessage =
 			"Hôm nay bạn thế nào? Hãy dành 5 phút chia sẻ với MoodNote nhé 💙";
 
-		const usersToNotify: string[] = [];
-
-		for (const setting of settings) {
-			const userId = setting.userId;
-
-			// Check if user already wrote today
-			const entryToday = await prisma.moodEntry.findFirst({
-				where: {
-					userId,
-					entryDate: { gte: todayStart, lte: todayEnd },
-				},
-				select: { id: true },
-			});
-			if (entryToday) continue;
-
-			// Check if reminder already sent today
-			const reminderToday = await prisma.notification.findFirst({
-				where: {
-					userId,
-					type: NotificationType.REMINDER,
-					createdAt: { gte: todayStart, lte: todayEnd },
-				},
-				select: { id: true },
-			});
-			if (reminderToday) continue;
-
-			usersToNotify.push(userId);
-		}
+		const usersToNotify = userIds.filter(
+			(id) => !wroteToday.has(id) && !alreadyNotified.has(id),
+		);
 
 		if (usersToNotify.length === 0) return;
 

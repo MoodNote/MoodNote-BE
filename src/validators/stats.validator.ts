@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const dateFields = {
-	range: z.enum(["7", "14", "30", "90"]).optional().default("30"),
+	range: z.enum(["7", "14", "30", "60", "90"]).optional().default("30"),
 	startDate: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/, "startDate must be YYYY-MM-DD")
@@ -44,7 +44,7 @@ export const statsValidators = {
 
 	patterns: z.object({
 		query: z.object({
-			range: z.enum(["30", "60", "90"]).optional().default("30"),
+			range: z.enum(["7", "14", "30", "60", "90"]).optional().default("30"),
 		}),
 	}),
 

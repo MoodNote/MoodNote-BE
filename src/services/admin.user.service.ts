@@ -1,5 +1,5 @@
 import prisma from "../config/database";
-import { countStreakFromToday } from "../utils/date.util";
+import { countStreakFromToday, daysAgo } from "../utils/date.util";
 import { calcSkip, buildPagination } from "../utils/pagination.util";
 import { AppError } from "../utils/app-error.util";
 import { HttpStatus } from "../utils/http-status.util";
@@ -113,6 +113,40 @@ class AdminUserService {
 				})(),
 			},
 		};
+	}
+
+	async getEmotionDistribution(userId: string, period: number) {
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { id: true },
+		});
+		if (!user) throw new AppError("User not found", HttpStatus.NOT_FOUND);
+
+		const periodStart = daysAgo(period);
+
+		const groups = await prisma.emotionAnalysis.groupBy({
+			by: ["primaryEmotion"],
+			where: {
+				entry: {
+					userId,
+					createdAt: { gte: periodStart },
+				},
+			},
+			_count: { primaryEmotion: true },
+			orderBy: { _count: { primaryEmotion: "desc" } },
+		});
+
+		const total = groups.reduce((sum, g) => sum + g._count.primaryEmotion, 0);
+
+		const distribution = groups.map((g) => ({
+			emotion: g.primaryEmotion,
+			count: g._count.primaryEmotion,
+			percentage: total > 0
+				? Math.round((g._count.primaryEmotion / total) * 10000) / 100
+				: 0,
+		}));
+
+		return { userId, period, distribution };
 	}
 
 	async updateUserStatus(id: string, isActive: boolean) {

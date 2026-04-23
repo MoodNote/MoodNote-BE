@@ -32,4 +32,19 @@ export const userValidators = {
 				},
 			),
 	}),
+
+	updateSettings: z.object({
+		body: z
+			.object({
+				theme: z.enum(["LIGHT", "DARK", "SYSTEM"]).optional(),
+				language: z
+					.string()
+					.min(2, "Language code must be at least 2 characters")
+					.max(10, "Language code must be at most 10 characters")
+					.optional(),
+			})
+			.refine((data) => data.theme !== undefined || data.language !== undefined, {
+				message: "At least one field (theme or language) is required",
+			}),
+	}),
 };

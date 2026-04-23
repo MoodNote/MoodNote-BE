@@ -1,6 +1,7 @@
 import prisma from "../config/database";
 import { AppError } from "../utils/app-error.util";
 import { HttpStatus } from "../utils/http-status.util";
+import { Theme } from "@prisma/client";
 
 class UserService {
 	private readonly profileSelect = {
@@ -10,6 +11,12 @@ class UserService {
 		name: true,
 		isEmailVerified: true,
 		createdAt: true,
+		updatedAt: true,
+	};
+
+	private readonly settingsSelect = {
+		theme: true,
+		language: true,
 		updatedAt: true,
 	};
 
@@ -43,6 +50,24 @@ class UserService {
 		});
 
 		return { message: "Profile updated successfully", data: updated };
+	}
+
+	async getSettings(userId: string) {
+		return prisma.userSettings.upsert({
+			where: { userId },
+			create: { userId },
+			update: {},
+			select: this.settingsSelect,
+		});
+	}
+
+	async updateSettings(userId: string, data: { theme?: Theme; language?: string }) {
+		return prisma.userSettings.upsert({
+			where: { userId },
+			create: { userId, ...data },
+			update: data,
+			select: this.settingsSelect,
+		});
 	}
 }
 

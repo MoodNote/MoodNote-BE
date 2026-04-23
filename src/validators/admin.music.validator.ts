@@ -37,14 +37,22 @@ const trackBodyBase = {
 	genreIds: z.array(z.string().uuid()).default([]),
 };
 
+const idParam = z.object({
+	params: z.object({
+		id: z.string().uuid("ID must be a valid UUID"),
+	}),
+});
+
 export const adminMusicValidators = {
+	byId: idParam,
+
 	// ── Tracks ─────────────────────────────────────────────────────────
 
 	createTrack: z.object({
 		body: z.object(trackBodyBase),
 	}),
 
-	updateTrack: z.object({
+	updateTrack: idParam.extend({
 		body: z
 			.object({
 				trackName: z.string().min(1).max(300).optional(),
@@ -94,7 +102,7 @@ export const adminMusicValidators = {
 		}),
 	}),
 
-	updateArtist: z.object({
+	updateArtist: idParam.extend({
 		body: z.object({
 			name: z.string().min(1, "Name is required").max(200),
 		}),
@@ -112,7 +120,7 @@ export const adminMusicValidators = {
 		}),
 	}),
 
-	updateGenre: z.object({
+	updateGenre: idParam.extend({
 		body: z.object({
 			name: z.string().min(1, "Name is required").max(100),
 		}),

@@ -29,6 +29,7 @@ export const entryValidators = {
 			.object({
 				title: z
 					.string()
+					.min(1, "Title cannot be empty")
 					.max(100, "Title must be at most 100 characters")
 					.optional(),
 				content: deltaSchema,
@@ -133,6 +134,7 @@ export const entryValidators = {
 			.object({
 				title: z
 					.string()
+					.min(1, "Title cannot be empty")
 					.max(100, "Title must be at most 100 characters")
 					.optional(),
 				content: deltaSchema.optional(),

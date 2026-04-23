@@ -98,4 +98,21 @@ export const adminValidators = {
 				),
 		}),
 	}),
+
+	getEmotionDistribution: z.object({
+		params: z.object({
+			id: z.string().uuid("User ID must be a valid UUID"),
+		}),
+		query: z.object({
+			period: z
+				.string()
+				.optional()
+				.transform((val) => (val ? parseInt(val, 10) : 30))
+				.pipe(
+					z.number()
+						.min(1, "Period must be at least 1 day")
+						.max(365, "Period must be at most 365 days"),
+				),
+		}),
+	}),
 };

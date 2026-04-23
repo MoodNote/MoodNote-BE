@@ -12,6 +12,12 @@ router.get(
 );
 
 router.get(
+	"/:id/emotion-distribution",
+	validate(adminValidators.getEmotionDistribution),
+	adminUserController.getEmotionDistribution,
+);
+
+router.get(
 	"/:id",
 	validate(adminValidators.getUserDetail),
 	adminUserController.getUserDetail,

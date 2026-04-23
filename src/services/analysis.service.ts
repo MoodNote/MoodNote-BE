@@ -90,7 +90,10 @@ class AnalysisService {
       if (!aiResult) {
         await prisma.moodEntry.update({
           where: { id: entryId },
-          data: { analysisStatus: "FAILED" },
+          data: {
+            analysisStatus: "FAILED",
+            analysisErrorReason: "AI service unavailable after retries",
+          },
         });
         return;
       }
@@ -160,7 +163,10 @@ class AnalysisService {
       await prisma.moodEntry
         .update({
           where: { id: entryId },
-          data: { analysisStatus: "FAILED" },
+          data: {
+            analysisStatus: "FAILED",
+            analysisErrorReason: err instanceof Error ? err.message : String(err),
+          },
         })
         .catch(() => {});
     }
@@ -236,7 +242,9 @@ class AnalysisService {
           console.error(`[Analysis] Retry failed error for entry ${id}:`, err),
         );
       }
-    })();
+    })().catch((err) =>
+      console.error("[Analysis] retryFailed loop error:", err),
+    );
 
     return failedEntries.length;
   }

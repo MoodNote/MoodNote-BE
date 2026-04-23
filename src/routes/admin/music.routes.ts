@@ -19,13 +19,13 @@ router.get(
 	validate(adminMusicValidators.listTracks),
 	adminMusicController.listTracks,
 );
-router.get("/tracks/:id", adminMusicController.getTrack);
+router.get("/tracks/:id", validate(adminMusicValidators.byId), adminMusicController.getTrack);
 router.patch(
 	"/tracks/:id",
 	validate(adminMusicValidators.updateTrack),
 	adminMusicController.updateTrack,
 );
-router.delete("/tracks/:id", adminMusicController.deleteTrack);
+router.delete("/tracks/:id", validate(adminMusicValidators.byId), adminMusicController.deleteTrack);
 
 // ── Artists ────────────────────────────────────────────────────────────────────
 router.post(
@@ -38,13 +38,13 @@ router.get(
 	validate(adminMusicValidators.listArtists),
 	adminMusicController.listArtists,
 );
-router.get("/artists/:id", adminMusicController.getArtist);
+router.get("/artists/:id", validate(adminMusicValidators.byId), adminMusicController.getArtist);
 router.put(
 	"/artists/:id",
 	validate(adminMusicValidators.updateArtist),
 	adminMusicController.updateArtist,
 );
-router.delete("/artists/:id", adminMusicController.deleteArtist);
+router.delete("/artists/:id", validate(adminMusicValidators.byId), adminMusicController.deleteArtist);
 
 // ── Genres ─────────────────────────────────────────────────────────────────────
 router.post(
@@ -57,12 +57,12 @@ router.get(
 	validate(adminMusicValidators.listGenres),
 	adminMusicController.listGenres,
 );
-router.get("/genres/:id", adminMusicController.getGenre);
+router.get("/genres/:id", validate(adminMusicValidators.byId), adminMusicController.getGenre);
 router.put(
 	"/genres/:id",
 	validate(adminMusicValidators.updateGenre),
 	adminMusicController.updateGenre,
 );
-router.delete("/genres/:id", adminMusicController.deleteGenre);
+router.delete("/genres/:id", validate(adminMusicValidators.byId), adminMusicController.deleteGenre);
 
 export default router;

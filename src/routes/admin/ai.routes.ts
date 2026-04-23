@@ -7,7 +7,7 @@ const router = Router();
 
 router.get("/health", adminAiController.checkHealth);
 router.post("/analyze", validate(adminAiValidators.testAnalyze), adminAiController.testAnalyze);
-router.post("/entries/:id/analyze", adminAiController.forceAnalyzeEntry);
+router.post("/entries/:id/analyze", validate(adminAiValidators.forceAnalyzeEntry), adminAiController.forceAnalyzeEntry);
 router.post("/retry-failed", adminAiController.retryFailed);
 router.get("/stats", adminAiController.getStats);
 

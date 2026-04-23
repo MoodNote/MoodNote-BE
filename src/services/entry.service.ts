@@ -168,8 +168,11 @@ class EntryService {
 						? plainText.slice(0, 30) + "..."
 						: plainText;
 				return this.formatEntryResponse(entry, payload, false, preview, entry.emotionAnalysis);
-			} catch {
-				// If decryption fails, return entry without content
+			} catch (err) {
+				console.error(
+					`[Entry] Failed to decrypt entry ${entry.id}:`,
+					err instanceof Error ? err.message : String(err),
+				);
 				return this.formatEntryResponse(
 					entry,
 					{ title: null, content: { ops: [] } },
@@ -322,8 +325,11 @@ class EntryService {
 		}
 
 		await prisma.moodEntry.delete({ where: { id: entryId } });
-		statsService.recomputeAndSaveStreaks(userId).catch((err) =>
-			console.warn("[Entry] Streak update failed:", err instanceof Error ? err.message : String(err)),
+		await statsService.recomputeAndSaveStreaks(userId).catch((err) =>
+			console.error(
+				"[Entry] Streak update failed after delete:",
+				err instanceof Error ? err.message : String(err),
+			),
 		);
 
 		return { message: "Entry deleted successfully" };

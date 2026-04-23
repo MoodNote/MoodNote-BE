@@ -207,10 +207,12 @@ model MoodEntry {
   inputMethod      InputMethod    @default(TEXT)
   tags             String[]       @default([])
   isPrivate        Boolean        @default(false)
-  analysisStatus   AnalysisStatus @default(PENDING)
-  musicStatus      MusicStatus    @default(PENDING) @map("music_status")
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  analysisStatus      AnalysisStatus @default(PENDING)
+  analysisErrorReason String?        @map("analysis_error_reason")
+  musicStatus         MusicStatus    @default(PENDING) @map("music_status")
+  musicErrorReason    String?        @map("music_error_reason")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   emotionAnalysis  EmotionAnalysis?
@@ -360,7 +362,7 @@ model RecommendationTrack {
   order            Int
 
   recommendation MusicRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
-  track          Track               @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  track          Track               @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@id([recommendationId, trackId])
   @@index([recommendationId])
@@ -393,7 +395,7 @@ model PlaylistTrack {
   order      Int
 
   playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  track    Track    @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@id([playlistId, trackId])
   @@index([playlistId])

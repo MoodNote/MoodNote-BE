@@ -16,4 +16,13 @@ router.patch(
 	userController.updateProfile,
 );
 
+router.get("/settings", generalRateLimiter, authenticate, userController.getSettings);
+router.patch(
+	"/settings",
+	generalRateLimiter,
+	authenticate,
+	validate(userValidators.updateSettings),
+	userController.updateSettings,
+);
+
 export default router;

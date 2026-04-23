@@ -61,4 +61,19 @@ export const adminUserController = {
 			handleError(error, res, "Failed to update user status");
 		}
 	},
+
+	async getEmotionDistribution(req: Request, res: Response) {
+		try {
+			const { id } = req.params;
+			const period = Number(req.query.period) || 30;
+			const result = await adminUserService.getEmotionDistribution(id, period);
+			res.status(HttpStatus.OK).json({
+				success: true,
+				message: "Emotion distribution retrieved successfully",
+				data: result,
+			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve emotion distribution");
+		}
+	},
 };

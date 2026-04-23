@@ -332,7 +332,13 @@ class MusicService {
 			// musicStatus → COMPLETED is set inside generateAndPersist
 		} catch (err) {
 			await prisma.moodEntry
-				.update({ where: { id: entryId }, data: { musicStatus: MusicStatus.FAILED } })
+				.update({
+					where: { id: entryId },
+					data: {
+						musicStatus: MusicStatus.FAILED,
+						musicErrorReason: err instanceof Error ? err.message : String(err),
+					},
+				})
 				.catch(() => {});
 			throw err;
 		}

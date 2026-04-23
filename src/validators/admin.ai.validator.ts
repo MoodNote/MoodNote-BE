@@ -10,4 +10,10 @@ export const adminAiValidators = {
         .trim(),
     }),
   }),
+
+  forceAnalyzeEntry: z.object({
+    params: z.object({
+      id: z.string().uuid("Entry ID must be a valid UUID"),
+    }),
+  }),
 };

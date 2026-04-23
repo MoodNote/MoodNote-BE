@@ -23,4 +23,24 @@ export const userController = {
 			handleError(error, res, "Failed to update profile");
 		}
 	},
+
+	async getSettings(req: Request, res: Response) {
+		try {
+			const userId = req.user!.userId;
+			const settings = await userService.getSettings(userId);
+			res.status(HttpStatus.OK).json({ success: true, message: "Settings retrieved successfully", data: { settings } });
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve settings");
+		}
+	},
+
+	async updateSettings(req: Request, res: Response) {
+		try {
+			const userId = req.user!.userId;
+			const settings = await userService.updateSettings(userId, req.body);
+			res.status(HttpStatus.OK).json({ success: true, message: "Settings updated successfully", data: { settings } });
+		} catch (error) {
+			handleError(error, res, "Failed to update settings");
+		}
+	},
 };
