@@ -48,6 +48,7 @@ class AdminStatsService {
 				entry: { createdAt: { gte: monthStart } },
 			},
 			select: { keywords: true },
+			take: 2000,
 		});
 
 		const kwFreq = new Map<string, number>();
@@ -107,6 +108,7 @@ class AdminStatsService {
 				by: ["genreId"],
 				_count: { genreId: true },
 				orderBy: { _count: { genreId: "desc" } },
+				take: 20,
 			}),
 			prisma.musicRecommendation.groupBy({
 				by: ["mode"],

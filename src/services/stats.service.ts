@@ -313,9 +313,16 @@ class StatsService {
 	// Home: Summary (streaks)
 	// ─────────────────────────────────────────
 
+	private static readonly POSITIVE_EMOTIONS = new Set(["Enjoyment", "Surprise", "Other"]);
+	private static readonly NEGATIVE_EMOTIONS = new Set(["Sadness", "Anger", "Fear", "Disgust"]);
+
 	async recomputeAndSaveStreaks(userId: string): Promise<void> {
+		const existing = await prisma.userStats.findUnique({ where: { userId } });
+		const currentStreak = existing?.writingStreak ?? 0;
+		const lookbackDays = existing ? Math.max(7, currentStreak + 1) : 90;
+
 		const cutoff = new Date();
-		cutoff.setUTCDate(cutoff.getUTCDate() - 365);
+		cutoff.setUTCDate(cutoff.getUTCDate() - lookbackDays);
 		cutoff.setUTCHours(0, 0, 0, 0);
 
 		const entries = await prisma.moodEntry.findMany({
@@ -338,13 +345,24 @@ class StatsService {
 		}
 
 		const writingStreak = countStreakFromToday((d) => writingDates.has(d));
-		const smileStreak = countStreakFromToday((d) => emotionByDate.get(d) === "Enjoyment");
-		const sadStreak = countStreakFromToday((d) => emotionByDate.get(d) === "Sadness");
+
+		let positiveStreak = 0;
+		let negativeStreak = 0;
+		const todayUTC = new Date();
+		todayUTC.setUTCHours(0, 0, 0, 0);
+		for (let i = 0; i < writingStreak; i++) {
+			const d = new Date(todayUTC);
+			d.setUTCDate(todayUTC.getUTCDate() - i);
+			const dateStr = d.toISOString().split("T")[0];
+			const emotion = emotionByDate.get(dateStr);
+			if (emotion && StatsService.POSITIVE_EMOTIONS.has(emotion)) positiveStreak++;
+			if (emotion && StatsService.NEGATIVE_EMOTIONS.has(emotion)) negativeStreak++;
+		}
 
 		await prisma.userStats.upsert({
 			where: { userId },
-			create: { userId, writingStreak, smileStreak, sadStreak },
-			update: { writingStreak, smileStreak, sadStreak },
+			create: { userId, writingStreak, positiveStreak, negativeStreak },
+			update: { writingStreak, positiveStreak, negativeStreak },
 		});
 	}
 
@@ -355,8 +373,8 @@ class StatsService {
 		if (stats && stats.updatedAt.toISOString().split("T")[0] === today) {
 			return {
 				writingStreak: stats.writingStreak,
-				smileStreak: stats.smileStreak,
-				sadStreak: stats.sadStreak,
+				positiveStreak: stats.positiveStreak,
+				negativeStreak: stats.negativeStreak,
 			};
 		}
 
@@ -365,8 +383,8 @@ class StatsService {
 		const fresh = await prisma.userStats.findUnique({ where: { userId } });
 		return {
 			writingStreak: fresh?.writingStreak ?? 0,
-			smileStreak: fresh?.smileStreak ?? 0,
-			sadStreak: fresh?.sadStreak ?? 0,
+			positiveStreak: fresh?.positiveStreak ?? 0,
+			negativeStreak: fresh?.negativeStreak ?? 0,
 		};
 	}
 
