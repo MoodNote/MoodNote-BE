@@ -133,11 +133,11 @@ model UserSettings {
 }
 
 model UserStats {
-  userId        String   @id @map("user_id")
-  writingStreak Int      @default(0) @map("writing_streak")
-  smileStreak   Int      @default(0) @map("smile_streak")
-  sadStreak     Int      @default(0) @map("sad_streak")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  userId          String   @id @map("user_id")
+  writingStreak   Int      @default(0) @map("writing_streak")
+  positiveStreak  Int      @default(0) @map("positive_streak")
+  negativeStreak  Int      @default(0) @map("negative_streak")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -401,6 +401,21 @@ model PlaylistTrack {
   @@index([playlistId])
   @@index([trackId])
   @@map("playlist_tracks")
+}
+
+// ─────────────────────────────────────────
+// MOOD TAGS
+// ─────────────────────────────────────────
+
+model MoodTag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@map("mood_tags")
 }
 
 // ─────────────────────────────────────────
