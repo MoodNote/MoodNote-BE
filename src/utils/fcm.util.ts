@@ -1,5 +1,4 @@
 import admin from "../config/firebase.config";
-import prisma from "../config/database";
 
 const isFirebaseReady = () => admin.apps.length > 0;
 
@@ -76,15 +75,6 @@ export const fcmUtil = {
 			} catch (error: any) {
 				console.error("[FCM] sendMulticastPush batch error:", error.message);
 			}
-		}
-
-		// Clean up stale tokens from DB
-		if (staleTokens.length > 0) {
-			await prisma.deviceToken
-				.deleteMany({ where: { token: { in: staleTokens } } })
-				.catch((err: Error) =>
-					console.error("[FCM] Failed to clean stale tokens:", err.message),
-				);
 		}
 
 		return staleTokens;

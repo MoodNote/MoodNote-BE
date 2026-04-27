@@ -179,7 +179,12 @@ class NotificationService {
 
 		if (deviceTokens.length > 0) {
 			const tokens = deviceTokens.map((d: { token: string }) => d.token);
-			await fcmUtil.sendMulticastPush(tokens, data.title, data.message);
+			const staleTokens = await fcmUtil.sendMulticastPush(tokens, data.title, data.message);
+			if (staleTokens.length > 0) {
+				await prisma.deviceToken
+					.deleteMany({ where: { token: { in: staleTokens } } })
+					.catch((err: Error) => console.error("[FCM] Failed to clean stale tokens:", err.message));
+			}
 		}
 
 		return { sent: users.length };
@@ -225,11 +230,12 @@ class NotificationService {
 
 		if (deviceTokens.length > 0) {
 			const tokens = deviceTokens.map((d: { token: string }) => d.token);
-			await fcmUtil.sendMulticastPush(
-				tokens,
-				notifData.title,
-				notifData.message,
-			);
+			const staleTokens = await fcmUtil.sendMulticastPush(tokens, notifData.title, notifData.message);
+			if (staleTokens.length > 0) {
+				await prisma.deviceToken
+					.deleteMany({ where: { token: { in: staleTokens } } })
+					.catch((err: Error) => console.error("[FCM] Failed to clean stale tokens:", err.message));
+			}
 		}
 
 		return { sent: validUsers.length, requested: userIds.length };
@@ -305,7 +311,12 @@ class NotificationService {
 
 		if (deviceTokens.length > 0) {
 			const tokens = deviceTokens.map((d: { token: string }) => d.token);
-			await fcmUtil.sendMulticastPush(tokens, reminderTitle, reminderMessage);
+			const staleTokens = await fcmUtil.sendMulticastPush(tokens, reminderTitle, reminderMessage);
+			if (staleTokens.length > 0) {
+				await prisma.deviceToken
+					.deleteMany({ where: { token: { in: staleTokens } } })
+					.catch((err: Error) => console.error("[FCM] Failed to clean stale tokens:", err.message));
+			}
 		}
 
 		console.log(
