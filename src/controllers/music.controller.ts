@@ -41,7 +41,7 @@ export const musicController = {
 		);
 		res.status(HttpStatus.OK).json({
 			success: true,
-			message: "Recent recommendation retrieved successfully",
+			message: "Recent playlists retrieved successfully",
 			data,
 		});
 	},

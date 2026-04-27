@@ -9,14 +9,14 @@ export const entryController = {
 	 */
 	async createEntry(req: Request, res: Response) {
 		try {
-			const { title, content, entryDate, inputMethod, tags, isPrivate } =
+			const { title, content, entryDate, inputMethod, tagIds, isPrivate } =
 				req.body;
 			const entry = await entryService.createEntry(req.user!.userId, {
 				title,
 				content,
 				entryDate,
 				inputMethod,
-				tags,
+				tagIds,
 				isPrivate,
 			});
 
@@ -44,7 +44,7 @@ export const entryController = {
 					: 20,
 				startDate: req.query.startDate as string | undefined,
 				endDate: req.query.endDate as string | undefined,
-				tags: req.query.tags as string | undefined,
+				tagIds: req.query.tagIds as string | undefined,
 				analysisStatus: req.query.analysisStatus as
 					| "PENDING"
 					| "PROCESSING"
@@ -88,14 +88,14 @@ export const entryController = {
 	 */
 	async updateEntry(req: Request, res: Response) {
 		try {
-			const { title, content, tags, isPrivate } = req.body;
+			const { title, content, tagIds, isPrivate } = req.body;
 			const entry = await entryService.updateEntry(
 				req.user!.userId,
 				req.params.id,
 				{
 					title,
 					content,
-					tags,
+					tagIds,
 					isPrivate,
 				},
 			);

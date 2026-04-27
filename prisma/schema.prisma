@@ -200,12 +200,11 @@ model DeviceToken {
 model MoodEntry {
   id               String         @id @default(uuid())
   userId           String
-  encryptedContent String         @db.Text // JSON: { title, content (Quill Delta) }, AES-256-CBC encrypted
+  encryptedContent String         @db.Text // JSON: { title, content (Quill Delta) }, AES-256-GCM encrypted
   contentIv        String
   wordCount        Int            @default(0)
   entryDate        DateTime
   inputMethod      InputMethod    @default(TEXT)
-  tags             String[]       @default([])
   isPrivate        Boolean        @default(false)
   analysisStatus      AnalysisStatus @default(PENDING)
   analysisErrorReason String?        @map("analysis_error_reason")
@@ -217,6 +216,7 @@ model MoodEntry {
   user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   emotionAnalysis  EmotionAnalysis?
   recommendations  MusicRecommendation[]
+  moodTags         EntryTag[]
 
   @@index([userId])
   @@index([userId, entryDate])
@@ -342,6 +342,7 @@ model MusicRecommendation {
   entryId     String             @map("entry_id")
   userId      String             @map("user_id")
   mode        RecommendationMode
+  diagnostics Json?              @map("diagnostics")
   generatedAt DateTime           @default(now()) @map("generated_at")
   createdAt   DateTime           @default(now()) @map("created_at")
 
@@ -414,8 +415,22 @@ model MoodTag {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  entries  EntryTag[]
+
   @@index([name])
   @@map("mood_tags")
+}
+
+model EntryTag {
+  entryId String    @map("entry_id")
+  tagId   String    @map("tag_id")
+  entry   MoodEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag     MoodTag   @relation(fields: [tagId],   references: [id], onDelete: Cascade)
+
+  @@id([entryId, tagId])
+  @@index([entryId])
+  @@index([tagId])
+  @@map("entry_tags")
 }
 
 // ─────────────────────────────────────────

@@ -2,10 +2,13 @@ import { RecommendationMode, MusicStatus, Prisma } from "@prisma/client";
 import prisma from "../config/database";
 import { AppError } from "../utils/app-error.util";
 import { HttpStatus } from "../utils/http-status.util";
+import { decryptEntry } from "../utils/entry.util";
 import {
 	resolveCentroid,
 	runMirrorMode,
 	runShiftMode,
+	type AlgorithmDiagnostics,
+	type TrackDiagnostic,
 	type TrackWithArtists,
 } from "./music.algorithm";
 
@@ -45,12 +48,13 @@ class MusicService {
 		entryId: string,
 		mode: RecommendationMode,
 		orderedTracks: TrackWithArtists[],
+		diagnostics: AlgorithmDiagnostics,
 	): Promise<string> {
 		return prisma.$transaction(async (tx) => {
 			const rec = await tx.musicRecommendation.upsert({
 				where: { entryId_mode: { entryId, mode } },
-				create: { entryId, userId, mode, generatedAt: new Date() },
-				update: { generatedAt: new Date() },
+				create: { entryId, userId, mode, generatedAt: new Date(), diagnostics: diagnostics as unknown as Prisma.InputJsonValue },
+				update: { generatedAt: new Date(), diagnostics: diagnostics as unknown as Prisma.InputJsonValue },
 			});
 
 			await tx.recommendationTrack.deleteMany({
@@ -90,29 +94,37 @@ class MusicService {
 			},
 		});
 
+		const diagnostics = rec.diagnostics as AlgorithmDiagnostics | null;
+
 		return {
 			id: rec.id,
 			entryId: rec.entryId,
 			mode: rec.mode,
 			generatedAt: rec.generatedAt,
-			tracks: rec.tracks.map((rt) => ({
-				order: rt.order,
-				track: {
-					id: rt.track.id,
-					trackName: rt.track.trackName,
-					albumName: rt.track.albumName,
-					popularity: rt.track.popularity,
-					durationMs: rt.track.durationMs,
-					valence: rt.track.valence,
-					energy: rt.track.energy,
-					danceability: rt.track.danceability,
-					acousticness: rt.track.acousticness,
-					tempo: rt.track.tempo,
-					artists: rt.track.artists.map((ta) => ({
-						name: ta.artist.name,
-					})),
-				},
-			})),
+			diagnostics,
+			tracks: rec.tracks.map((rt) => {
+				const diag = diagnostics?.trackDiagnostics.find((d) => d.trackId === rt.track.id) ?? null;
+				return {
+					order: rt.order,
+					score: diag?.score ?? null,
+					stage: diag?.stage ?? null,
+					track: {
+						id: rt.track.id,
+						trackName: rt.track.trackName,
+						albumName: rt.track.albumName,
+						popularity: rt.track.popularity,
+						durationMs: rt.track.durationMs,
+						valence: rt.track.valence,
+						energy: rt.track.energy,
+						danceability: rt.track.danceability,
+						acousticness: rt.track.acousticness,
+						tempo: rt.track.tempo,
+						artists: rt.track.artists.map((ta) => ({
+							name: ta.artist.name,
+						})),
+					},
+				};
+			}),
 		};
 	}
 
@@ -134,7 +146,7 @@ class MusicService {
 			);
 		}
 
-		const centroid = resolveCentroid({
+		const { centroid, moodKey, isBlended } = resolveCentroid({
 			primaryEmotion: analysis.primaryEmotion,
 			confidence: analysis.confidence,
 			intensity: analysis.intensity,
@@ -142,23 +154,39 @@ class MusicService {
 		});
 
 		let orderedTracks: TrackWithArtists[];
+		let trackDiagnostics: TrackDiagnostic[];
+		let shiftParams: AlgorithmDiagnostics["shiftParams"];
 
 		if (mode === RecommendationMode.MIRROR) {
-			orderedTracks = runMirrorMode(candidates, centroid, withJitter);
+			const result = runMirrorMode(candidates, centroid, withJitter);
+			orderedTracks = result.tracks;
+			trackDiagnostics = result.trackDiagnostics;
 		} else {
-			orderedTracks = runShiftMode(
+			const result = runShiftMode(
 				candidates,
 				centroid,
 				analysis.sentimentScore,
 				withJitter,
 			);
+			orderedTracks = result.tracks;
+			trackDiagnostics = result.trackDiagnostics;
+			shiftParams = result.shiftParams;
 		}
+
+		const diagnostics: AlgorithmDiagnostics = {
+			moodKey,
+			isBlended,
+			resolvedCentroid: centroid,
+			trackDiagnostics,
+			...(shiftParams && { shiftParams }),
+		};
 
 		const recommendationId = await this.persistRecommendation(
 			userId,
 			entryId,
 			mode,
 			orderedTracks,
+			diagnostics,
 		);
 
 		// Mark music as completed — best-effort, entry may have been deleted
@@ -259,13 +287,14 @@ class MusicService {
 	}
 
 	async getRecentRecommendation(userId: string, limit: number) {
-		const rec = await prisma.musicRecommendation.findFirst({
+		const recs = await prisma.musicRecommendation.findMany({
 			where: { userId },
 			orderBy: { generatedAt: "desc" },
+			take: limit,
 			include: {
+				entry: { select: { encryptedContent: true, contentIv: true } },
 				tracks: {
 					orderBy: { order: "asc" },
-					take: limit,
 					include: {
 						track: {
 							include: {
@@ -281,34 +310,43 @@ class MusicService {
 			},
 		});
 
-		if (!rec) return { recommendation: null };
-
-		return {
-			recommendation: {
+		const playlists = recs.map((rec) => {
+			const diagnostics = rec.diagnostics as AlgorithmDiagnostics | null;
+			const { title } = decryptEntry(rec.entry.encryptedContent, rec.entry.contentIv);
+			return {
 				id: rec.id,
+				title,
 				entryId: rec.entryId,
 				mode: rec.mode,
 				generatedAt: rec.generatedAt,
-				tracks: rec.tracks.map((rt) => ({
-					order: rt.order,
-					track: {
-						id: rt.track.id,
-						trackName: rt.track.trackName,
-						albumName: rt.track.albumName,
-						popularity: rt.track.popularity,
-						durationMs: rt.track.durationMs,
-						valence: rt.track.valence,
-						energy: rt.track.energy,
-						danceability: rt.track.danceability,
-						acousticness: rt.track.acousticness,
-						tempo: rt.track.tempo,
-						artists: rt.track.artists.map((ta) => ({
-							name: ta.artist.name,
-						})),
-					},
-				})),
-			},
-		};
+				diagnostics,
+				tracks: rec.tracks.map((rt) => {
+					const diag = diagnostics?.trackDiagnostics.find((d) => d.trackId === rt.track.id) ?? null;
+					return {
+						order: rt.order,
+						score: diag?.score ?? null,
+						stage: diag?.stage ?? null,
+						track: {
+							id: rt.track.id,
+							trackName: rt.track.trackName,
+							albumName: rt.track.albumName,
+							popularity: rt.track.popularity,
+							durationMs: rt.track.durationMs,
+							valence: rt.track.valence,
+							energy: rt.track.energy,
+							danceability: rt.track.danceability,
+							acousticness: rt.track.acousticness,
+							tempo: rt.track.tempo,
+							artists: rt.track.artists.map((ta) => ({
+								name: ta.artist.name,
+							})),
+						},
+					};
+				}),
+			};
+		});
+
+		return { playlists };
 	}
 
 	/**

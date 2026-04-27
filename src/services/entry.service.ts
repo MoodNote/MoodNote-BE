@@ -11,13 +11,17 @@ import type { Delta, EntryPayload } from "../types/entry.types";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 
+type EntryWithTags = Prisma.MoodEntryGetPayload<{
+	include: { moodTags: { include: { tag: true } } };
+}>;
+
 class EntryService {
 	private calcWordCount(plainText: string): number {
 		return plainText.trim().split(/\s+/).filter(Boolean).length;
 	}
 
 	private formatEntryResponse(
-		entry: Prisma.MoodEntryGetPayload<object>,
+		entry: EntryWithTags,
 		payload: EntryPayload,
 		includeFullContent: boolean,
 		preview?: string,
@@ -28,7 +32,7 @@ class EntryService {
 			title: payload.title,
 			entryDate: entry.entryDate,
 			inputMethod: entry.inputMethod,
-			tags: entry.tags,
+			tags: entry.moodTags.map((et) => et.tag),
 			wordCount: entry.wordCount,
 			isPrivate: entry.isPrivate,
 			analysisStatus: entry.analysisStatus,
@@ -51,7 +55,7 @@ class EntryService {
 			content: Delta;
 			entryDate?: string;
 			inputMethod?: "TEXT" | "VOICE";
-			tags?: string[];
+			tagIds?: string[];
 			isPrivate?: boolean;
 		},
 	) {
@@ -70,6 +74,17 @@ class EntryService {
 		now.setHours(23, 59, 59, 999);
 		if (entryDate > now) {
 			throw new AppError("Entry date cannot be in the future", HttpStatus.BAD_REQUEST);
+		}
+
+		const tagIds = data.tagIds ?? [];
+		if (tagIds.length > 0) {
+			const found = await prisma.moodTag.findMany({
+				where: { id: { in: tagIds } },
+				select: { id: true },
+			});
+			if (found.length !== tagIds.length) {
+				throw new AppError("One or more tag IDs are invalid", HttpStatus.BAD_REQUEST);
+			}
 		}
 
 		const plainText = extractPlainText(data.content);
@@ -93,10 +108,11 @@ class EntryService {
 				wordCount,
 				entryDate,
 				inputMethod: (data.inputMethod ?? "TEXT") as "TEXT" | "VOICE",
-				tags: data.tags ?? [],
 				isPrivate: data.isPrivate ?? false,
 				analysisStatus: "PENDING",
+				moodTags: { create: tagIds.map((tagId) => ({ tagId })) },
 			},
+			include: { moodTags: { include: { tag: true } } },
 		});
 
 		// Fire-and-forget AI analysis — response is not blocked
@@ -115,11 +131,11 @@ class EntryService {
 			limit: number;
 			startDate?: string;
 			endDate?: string;
-			tags?: string;
+			tagIds?: string;
 			analysisStatus?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 		},
 	) {
-		const { page, limit, startDate, endDate, tags, analysisStatus } = query;
+		const { page, limit, startDate, endDate, tagIds, analysisStatus } = query;
 		const skip = calcSkip(page, limit);
 
 		const where: Prisma.MoodEntryWhereInput = { userId };
@@ -134,13 +150,13 @@ class EntryService {
 			}
 		}
 
-		if (tags) {
-			const tagList = tags
+		if (tagIds) {
+			const tagIdList = tagIds
 				.split(",")
 				.map((t) => t.trim())
 				.filter(Boolean);
-			if (tagList.length > 0) {
-				where.tags = { hasSome: tagList };
+			if (tagIdList.length > 0) {
+				where.moodTags = { some: { tagId: { in: tagIdList } } };
 			}
 		}
 
@@ -154,7 +170,7 @@ class EntryService {
 				orderBy: { entryDate: "desc" },
 				skip,
 				take: limit,
-				include: { emotionAnalysis: true },
+				include: { emotionAnalysis: true, moodTags: { include: { tag: true } } },
 			}),
 			prisma.moodEntry.count({ where }),
 		]);
@@ -192,7 +208,7 @@ class EntryService {
 	async getEntry(userId: string, entryId: string) {
 		const entry = await prisma.moodEntry.findUnique({
 			where: { id: entryId },
-			include: { emotionAnalysis: true },
+			include: { emotionAnalysis: true, moodTags: { include: { tag: true } } },
 		});
 
 		if (!entry) {
@@ -220,7 +236,7 @@ class EntryService {
 		data: {
 			title?: string;
 			content?: Delta;
-			tags?: string[];
+			tagIds?: string[];
 			isPrivate?: boolean;
 		},
 	) {
@@ -239,11 +255,21 @@ class EntryService {
 		const hasUpdatableFields =
 			data.title !== undefined ||
 			data.content !== undefined ||
-			data.tags !== undefined ||
+			data.tagIds !== undefined ||
 			data.isPrivate !== undefined;
 
 		if (!hasUpdatableFields) {
 			throw new AppError("No fields to update", HttpStatus.BAD_REQUEST);
+		}
+
+		if (data.tagIds !== undefined && data.tagIds.length > 0) {
+			const found = await prisma.moodTag.findMany({
+				where: { id: { in: data.tagIds } },
+				select: { id: true },
+			});
+			if (found.length !== data.tagIds.length) {
+				throw new AppError("One or more tag IDs are invalid", HttpStatus.BAD_REQUEST);
+			}
 		}
 
 		const updateData: Parameters<
@@ -276,7 +302,12 @@ class EntryService {
 			}
 		}
 
-		if (data.tags !== undefined) updateData.tags = data.tags;
+		if (data.tagIds !== undefined) {
+			updateData.moodTags = {
+				deleteMany: {},
+				createMany: { data: data.tagIds.map((tagId) => ({ tagId })) },
+			};
+		}
 		if (data.isPrivate !== undefined) updateData.isPrivate = data.isPrivate;
 
 		const contentChanged = data.content !== undefined;
@@ -285,6 +316,7 @@ class EntryService {
 			prisma.moodEntry.update({
 				where: { id: entryId },
 				data: updateData,
+				include: { moodTags: { include: { tag: true } } },
 			}),
 			...(contentChanged
 				? [prisma.emotionAnalysis.deleteMany({ where: { entryId } })]

@@ -26,6 +26,27 @@ export type TrackWithArtists = Prisma.TrackGetPayload<{
 	};
 }>;
 
+export interface TrackDiagnostic {
+	trackId: string;
+	score: number;
+	stage?: 1 | 2 | 3;
+}
+
+export interface ShiftParams {
+	shiftBudget: number;
+	alphaMax: number;
+	stageAlphas: [number, number, number];
+	stageCentroids: [AudioFeatures, AudioFeatures, AudioFeatures];
+}
+
+export interface AlgorithmDiagnostics {
+	moodKey: MoodKey | "BLENDED";
+	isBlended: boolean;
+	resolvedCentroid: AudioFeatures;
+	trackDiagnostics: TrackDiagnostic[];
+	shiftParams?: ShiftParams;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 /**
@@ -187,12 +208,12 @@ export function resolveCentroid(analysis: {
 	confidence: number | null;
 	intensity: number;
 	emotionDistribution: unknown;
-}): AudioFeatures {
+}): { centroid: AudioFeatures; moodKey: MoodKey | "BLENDED"; isBlended: boolean } {
 	const confidence = analysis.confidence ?? 0;
 
 	if (confidence >= 0.5) {
 		const moodKey = emotionToMood(analysis.primaryEmotion, analysis.intensity);
-		return MOOD_CENTROIDS[moodKey];
+		return { centroid: MOOD_CENTROIDS[moodKey], moodKey, isBlended: false };
 	}
 
 	const distribution = analysis.emotionDistribution as Record<
@@ -202,7 +223,7 @@ export function resolveCentroid(analysis: {
 
 	if (!distribution || Object.keys(distribution).length === 0) {
 		const moodKey = emotionToMood(analysis.primaryEmotion, analysis.intensity);
-		return MOOD_CENTROIDS[moodKey];
+		return { centroid: MOOD_CENTROIDS[moodKey], moodKey, isBlended: false };
 	}
 
 	const blended: AudioFeatures = {
@@ -233,7 +254,7 @@ export function resolveCentroid(analysis: {
 		}
 	}
 
-	return blended;
+	return { centroid: blended, moodKey: "BLENDED", isBlended: true };
 }
 
 // ── Scoring & Selection ───────────────────────────────────────────────────────
@@ -260,22 +281,23 @@ export function scoreTrack(track: TrackWithArtists, centroid: AudioFeatures): nu
 /**
  * Greedily picks up to `n` tracks from `pool` by ascending score.
  * Enforces max 2 picks per artist via shared `artistCounts` map.
- * Returns picked tracks and the remaining pool (for next stage).
+ * Returns picked tracks, the remaining pool (for next stage), and per-track scores.
  */
 export function selectTopN(
 	pool: TrackWithArtists[],
 	centroid: AudioFeatures,
 	n: number,
 	artistCounts: Map<string, number>,
-): { picked: TrackWithArtists[]; remaining: TrackWithArtists[] } {
+): { picked: TrackWithArtists[]; remaining: TrackWithArtists[]; scores: Map<string, number> } {
 	const scored = pool
 		.map((t) => ({ track: t, score: scoreTrack(t, centroid) }))
 		.sort((a, b) => a.score - b.score);
 
 	const picked: TrackWithArtists[] = [];
 	const pickedIds = new Set<string>();
+	const scores = new Map<string, number>();
 
-	for (const { track } of scored) {
+	for (const { track, score } of scored) {
 		if (picked.length >= n) break;
 
 		const artistIds = track.artists.map((ta) => ta.artistId);
@@ -286,6 +308,7 @@ export function selectTopN(
 		if (canPick) {
 			picked.push(track);
 			pickedIds.add(track.id);
+			scores.set(track.id, score);
 			for (const aid of artistIds) {
 				artistCounts.set(aid, (artistCounts.get(aid) ?? 0) + 1);
 			}
@@ -293,7 +316,7 @@ export function selectTopN(
 	}
 
 	const remaining = pool.filter((t) => !pickedIds.has(t.id));
-	return { picked, remaining };
+	return { picked, remaining, scores };
 }
 
 // ── Mirror Mode ───────────────────────────────────────────────────────────────
@@ -302,11 +325,15 @@ export function runMirrorMode(
 	tracks: TrackWithArtists[],
 	centroid: AudioFeatures,
 	withJitter: boolean,
-): TrackWithArtists[] {
+): { tracks: TrackWithArtists[]; trackDiagnostics: TrackDiagnostic[] } {
 	const target = withJitter ? applyJitter(centroid) : centroid;
 	const artistCounts = new Map<string, number>();
-	const { picked } = selectTopN(tracks, target, TOTAL_TRACKS, artistCounts);
-	return picked;
+	const { picked, scores } = selectTopN(tracks, target, TOTAL_TRACKS, artistCounts);
+	const trackDiagnostics: TrackDiagnostic[] = picked.map((t) => ({
+		trackId: t.id,
+		score: scores.get(t.id)!,
+	}));
+	return { tracks: picked, trackDiagnostics };
 }
 
 // ── Shift Mode (ISO Principle) ────────────────────────────────────────────────
@@ -321,42 +348,55 @@ export function runShiftMode(
 	centroid: AudioFeatures,
 	sentimentScore: number,
 	withJitter: boolean,
-): TrackWithArtists[] {
+): { tracks: TrackWithArtists[]; trackDiagnostics: TrackDiagnostic[]; shiftParams: ShiftParams } {
 	const calmCentroid = MOOD_CENTROIDS["CALM"];
 	const absSentiment = Math.abs(sentimentScore);
 	const shiftBudget = clip((absSentiment - 0.2) / 0.8, 0, 1);
 	const alphaMax = 0.6 + 0.3 * (1.0 - shiftBudget);
 
-	const stages: Array<{ alpha: number; count: number }> = [
+	const stageDefinitions: Array<{ alpha: number; count: number }> = [
 		{ alpha: 0.2, count: 7 },
 		{ alpha: alphaMax / 2, count: 7 },
 		{ alpha: alphaMax, count: 6 },
 	];
 
+	// Compute clean (pre-jitter) stage centroids for diagnostics
+	const stageCentroids = stageDefinitions.map((s) =>
+		interpolateCentroids(centroid, calmCentroid, s.alpha),
+	) as [AudioFeatures, AudioFeatures, AudioFeatures];
+
+	const shiftParams: ShiftParams = {
+		shiftBudget,
+		alphaMax,
+		stageAlphas: [stageDefinitions[0].alpha, stageDefinitions[1].alpha, stageDefinitions[2].alpha],
+		stageCentroids,
+	};
+
 	const artistCounts = new Map<string, number>();
 	const allPicked: TrackWithArtists[] = [];
+	const trackDiagnostics: TrackDiagnostic[] = [];
 	let pool = tracks;
 
-	for (const stage of stages) {
-		const stageCentroid = interpolateCentroids(
-			centroid,
-			calmCentroid,
-			stage.alpha,
-		);
+	for (let i = 0; i < stageDefinitions.length; i++) {
+		const stage = stageDefinitions[i];
+		const stageNum = (i + 1) as 1 | 2 | 3;
 		const effectiveCentroid = withJitter
-			? applyJitter(stageCentroid)
-			: stageCentroid;
+			? applyJitter(stageCentroids[i])
+			: stageCentroids[i];
 
-		const { picked, remaining } = selectTopN(
+		const { picked, remaining, scores } = selectTopN(
 			pool,
 			effectiveCentroid,
 			stage.count,
 			artistCounts,
 		);
 
+		for (const t of picked) {
+			trackDiagnostics.push({ trackId: t.id, score: scores.get(t.id)!, stage: stageNum });
+		}
 		allPicked.push(...picked);
 		pool = remaining;
 	}
 
-	return allPicked;
+	return { tracks: allPicked, trackDiagnostics, shiftParams };
 }

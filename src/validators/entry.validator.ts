@@ -18,10 +18,7 @@ const extractPlainText = (delta: z.infer<typeof deltaSchema>): string =>
 		.join("")
 		.trim();
 
-const tagSchema = z
-	.string()
-	.min(1, "Tag cannot be empty")
-	.max(30, "Tag must be at most 30 characters");
+const tagIdSchema = z.string().uuid("Each tag must be a valid UUID");
 
 export const entryValidators = {
 	createEntry: z.object({
@@ -58,8 +55,8 @@ export const entryValidators = {
 					.enum(["TEXT", "VOICE"])
 					.optional()
 					.default("TEXT"),
-				tags: z
-					.array(tagSchema)
+				tagIds: z
+					.array(tagIdSchema)
 					.max(10, "Cannot have more than 10 tags")
 					.optional()
 					.default([]),
@@ -113,7 +110,7 @@ export const entryValidators = {
 				.refine((val) => !val || !isNaN(new Date(val).getTime()), {
 					message: "Invalid endDate format",
 				}),
-			tags: z.string().optional(),
+			tagIds: z.string().optional(),
 			analysisStatus: z
 				.enum(["PENDING", "PROCESSING", "COMPLETED", "FAILED"])
 				.optional(),
@@ -138,8 +135,8 @@ export const entryValidators = {
 					.max(100, "Title must be at most 100 characters")
 					.optional(),
 				content: deltaSchema.optional(),
-				tags: z
-					.array(tagSchema)
+				tagIds: z
+					.array(tagIdSchema)
 					.max(10, "Cannot have more than 10 tags")
 					.optional(),
 				isPrivate: z.boolean().optional(),
@@ -149,7 +146,7 @@ export const entryValidators = {
 				if (
 					data.title === undefined &&
 					data.content === undefined &&
-					data.tags === undefined &&
+					data.tagIds === undefined &&
 					data.isPrivate === undefined
 				) {
 					ctx.addIssue({
