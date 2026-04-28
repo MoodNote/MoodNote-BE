@@ -20,6 +20,8 @@ const idParam = z.object({
 	}),
 });
 
+const tagTypeEnum = z.enum(["MOOD", "LIFE"]);
+
 export const adminMoodTagsValidators = {
 	byId: idParam,
 
@@ -34,6 +36,7 @@ export const adminMoodTagsValidators = {
 				.string()
 				.regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a valid hex color (e.g. #6B7280)")
 				.optional(),
+			type: tagTypeEnum,
 		}),
 	}),
 
@@ -51,18 +54,22 @@ export const adminMoodTagsValidators = {
 					.regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a valid hex color (e.g. #6B7280)")
 					.nullable()
 					.optional(),
+				type: tagTypeEnum.optional(),
 			})
 			.superRefine((data, ctx) => {
-				if (data.name === undefined && data.color === undefined) {
+				if (data.name === undefined && data.color === undefined && data.type === undefined) {
 					ctx.addIssue({
 						code: z.ZodIssueCode.custom,
-						message: "At least one field (name or color) is required",
+						message: "At least one field (name, color, or type) is required",
 					});
 				}
 			}),
 	}),
 
 	listTags: z.object({
-		query: z.object(paginationQuery),
+		query: z.object({
+			...paginationQuery,
+			type: tagTypeEnum.optional(),
+		}),
 	}),
 };

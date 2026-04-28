@@ -5,9 +5,10 @@
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
 		"lib": ["ES2024"],
+		"types": ["node"],
 
 		/* Cấu hình thư mục */
-		"rootDir": "./src",
+		"rootDir": "./",
 		"outDir": "./dist",
 
 		/* Chế độ kiểm tra nghiêm ngặt (Strict Checks) */
@@ -27,6 +28,6 @@
 		/* (Mới) Cú pháp module chính xác */
 		"verbatimModuleSyntax": true
 	},
-	"include": ["src/**/*"],
+	"include": ["src/**/*", "prisma.config.ts", "prisma/**/*"],
 	"exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
 }

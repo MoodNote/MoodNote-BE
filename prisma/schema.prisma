@@ -51,6 +51,11 @@ enum RecommendationMode {
   SHIFT
 }
 
+enum TagType {
+  MOOD
+  LIFE
+}
+
 enum MusicStatus {
   PENDING      // Waiting for analysis to complete, not yet started
   GENERATING   // Auto-generation is in progress (fire-and-forget running)
@@ -412,12 +417,14 @@ model MoodTag {
   id        String   @id @default(uuid())
   name      String   @unique
   color     String?
+  type      TagType  @default(LIFE)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   entries  EntryTag[]
 
   @@index([name])
+  @@index([type])
   @@map("mood_tags")
 }
 

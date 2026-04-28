@@ -19,11 +19,12 @@ export const adminMoodTagsController = {
 
 	async listTags(req: Request, res: Response) {
 		try {
-			const { page, limit, search } = req.query as Record<string, string | undefined>;
+			const { page, limit, search, type } = req.query as Record<string, string | undefined>;
 			const result = await adminMoodTagsService.listTags({
 				page: page ? parseInt(page, 10) : 1,
 				limit: limit ? parseInt(limit, 10) : 20,
 				search,
+				type: type as "MOOD" | "LIFE" | undefined,
 			});
 			res.status(HttpStatus.OK).json({
 				success: true,

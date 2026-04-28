@@ -7,17 +7,20 @@ import { calcSkip, buildPagination } from "../utils/pagination.util";
 interface CreateTagInput {
 	name: string;
 	color?: string;
+	type: "MOOD" | "LIFE";
 }
 
 interface UpdateTagInput {
 	name?: string;
 	color?: string | null;
+	type?: "MOOD" | "LIFE";
 }
 
 interface ListTagsQuery {
 	page: number;
 	limit: number;
 	search?: string;
+	type?: "MOOD" | "LIFE";
 }
 
 class AdminMoodTagsService {
@@ -30,12 +33,13 @@ class AdminMoodTagsService {
 	}
 
 	async listTags(query: ListTagsQuery) {
-		const { page, limit, search } = query;
+		const { page, limit, search, type } = query;
 		const skip = calcSkip(page, limit);
 
-		const where = search
-			? { name: { contains: search, mode: "insensitive" as const } }
-			: {};
+		const where = {
+			...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
+			...(type ? { type } : {}),
+		};
 
 		const [tags, total] = await Promise.all([
 			prisma.moodTag.findMany({
