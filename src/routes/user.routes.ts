@@ -25,4 +25,20 @@ router.patch(
 	userController.updateSettings,
 );
 
+router.get("/me/export", generalRateLimiter, authenticate, userController.exportData);
+router.post(
+	"/me/import",
+	generalRateLimiter,
+	authenticate,
+	validate(userValidators.importData),
+	userController.importData,
+);
+router.delete(
+	"/me",
+	generalRateLimiter,
+	authenticate,
+	validate(userValidators.deleteAccount),
+	userController.deleteAccount,
+);
+
 export default router;

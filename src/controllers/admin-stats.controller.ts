@@ -38,4 +38,22 @@ export const adminStatsController = {
 			handleError(error, res, "Failed to retrieve music statistics");
 		}
 	},
+
+	/**
+	 * GET /api/admin/stats/growth?period=7d|30d|90d
+	 * FR-25: Daily new-user count over a time period for line chart.
+	 */
+	async getGrowth(req: Request, res: Response) {
+		try {
+			const period = (req.query.period as "7d" | "30d" | "90d") ?? "30d";
+			const data = await adminStatsService.getGrowthData(period);
+			res.status(HttpStatus.OK).json({
+				success: true,
+				message: "Growth data retrieved successfully",
+				data,
+			});
+		} catch (error) {
+			handleError(error, res, "Failed to retrieve growth data");
+		}
+	},
 };

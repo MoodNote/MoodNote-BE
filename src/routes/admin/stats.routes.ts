@@ -13,4 +13,10 @@ router.get(
 	adminStatsController.getMusicStats,
 );
 
+router.get(
+	"/growth",
+	validate(statsValidators.adminGrowth),
+	adminStatsController.getGrowth,
+);
+
 export default router;

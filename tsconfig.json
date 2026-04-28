@@ -1,17 +1,32 @@
 {
 	"compilerOptions": {
-		"target": "ES2020",
-		"module": "commonjs",
-		"lib": ["ES2020"],
-		"outDir": "./dist",
+		/* Thiết lập lõi (Modern Base) */
+		"target": "ES2023",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"lib": ["ES2024"],
+
+		/* Cấu hình thư mục */
 		"rootDir": "./src",
+		"outDir": "./dist",
+
+		/* Chế độ kiểm tra nghiêm ngặt (Strict Checks) */
 		"strict": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+
+		/* Tương tác Module (Module Interop) */
 		"esModuleInterop": true,
+		"resolveJsonModule": true,
+		"allowSyntheticDefaultImports": true,
+
+		/* Tối ưu hiệu suất và dọn dẹp code */
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"moduleResolution": "node"
+
+		/* (Mới) Cú pháp module chính xác */
+		"verbatimModuleSyntax": true
 	},
 	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist"]
+	"exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
 }

@@ -43,4 +43,34 @@ export const userController = {
 			handleError(error, res, "Failed to update settings");
 		}
 	},
+
+	async exportData(req: Request, res: Response) {
+		try {
+			const userId = req.user!.userId;
+			const data = await userService.exportData(userId);
+			res.status(HttpStatus.OK).json({ success: true, message: "Data exported successfully", data });
+		} catch (error) {
+			handleError(error, res, "Failed to export data");
+		}
+	},
+
+	async importData(req: Request, res: Response) {
+		try {
+			const userId = req.user!.userId;
+			const data = await userService.importData(userId, req.body);
+			res.status(HttpStatus.OK).json({ success: true, message: "Data imported successfully", data });
+		} catch (error) {
+			handleError(error, res, "Failed to import data");
+		}
+	},
+
+	async deleteAccount(req: Request, res: Response) {
+		try {
+			const userId = req.user!.userId;
+			await userService.deleteAccount(userId, req.body.password);
+			res.status(HttpStatus.OK).json({ success: true, message: "Account deleted successfully" });
+		} catch (error) {
+			handleError(error, res, "Failed to delete account");
+		}
+	},
 };

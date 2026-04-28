@@ -182,6 +182,37 @@ class AdminStatsService {
 			recommendationModes,
 		};
 	}
+
+	// ─────────────────────────────────────────
+	// FR-25: Admin User Growth Time-Series
+	// ─────────────────────────────────────────
+
+	async getGrowthData(period: "7d" | "30d" | "90d") {
+		const days = period === "7d" ? 7 : period === "30d" ? 30 : 90;
+		const startDate = startOfDay(daysAgo(days - 1));
+
+		const users = await prisma.user.findMany({
+			where: { role: "USER", createdAt: { gte: startDate } },
+			select: { createdAt: true },
+		});
+
+		const countByDate = new Map<string, number>();
+		for (const { createdAt } of users) {
+			const dateStr = createdAt.toISOString().split("T")[0];
+			countByDate.set(dateStr, (countByDate.get(dateStr) ?? 0) + 1);
+		}
+
+		const dataPoints: { date: string; newUsers: number }[] = [];
+		const cursor = new Date(startDate);
+		const today = startOfDay(new Date());
+		while (cursor <= today) {
+			const dateStr = cursor.toISOString().split("T")[0];
+			dataPoints.push({ date: dateStr, newUsers: countByDate.get(dateStr) ?? 0 });
+			cursor.setDate(cursor.getDate() + 1);
+		}
+
+		return { period, dataPoints };
+	}
 }
 
 export const adminStatsService = new AdminStatsService();
