@@ -3,8 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type Theme, type UserRole } from "@prisma/client";
 import { Pool } from "pg";
 import bcrypt from "bcrypt";
-import { encrypt } from "../src/utils/encryption.util";
-import { randomUUID } from "crypto";
+import { createCipheriv, randomBytes, randomUUID } from "crypto";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -35,6 +34,11 @@ type SeedEntry = {
 	inputMethod: "TEXT" | "VOICE";
 };
 
+type SeedMoodTag = {
+	name: string;
+	color: string;
+};
+
 const adminSeed: SeedUser = {
 	id: randomUUID(),
 	email: "admin@moodnote.com",
@@ -58,6 +62,14 @@ const demoUsers: SeedUser[] = [
 ];
 
 const seedUsers: SeedUser[] = [adminSeed, ...demoUsers];
+
+const seedMoodTags: SeedMoodTag[] = [
+	{ name: "vui-ve", color: "#FFD700" },
+	{ name: "cong-viec", color: "#4A90E2" },
+	{ name: "ban-be", color: "#7ED321" },
+	{ name: "thu-gian", color: "#9B59B6" },
+	{ name: "met-moi", color: "#95A5A6" },
+];
 
 const seedEntries: SeedEntry[] = Array.from({ length: 30 }).map((_, index) => {
 	const day = index + 1;
@@ -118,6 +130,27 @@ async function hashPassword(password: string): Promise<string> {
 	return bcrypt.hash(password, 12);
 }
 
+function encryptContent(
+	plaintext: string,
+	keyHex: string,
+): {
+	ciphertext: string;
+	iv: string;
+} {
+	const key = Buffer.from(keyHex, "hex");
+	const iv = randomBytes(16);
+	const cipher = createCipheriv("aes-256-gcm", key, iv);
+	const encrypted = Buffer.concat([
+		cipher.update(plaintext, "utf8"),
+		cipher.final(),
+	]);
+	const authTag = cipher.getAuthTag();
+	return {
+		ciphertext: Buffer.concat([authTag, encrypted]).toString("base64"),
+		iv: iv.toString("hex"),
+	};
+}
+
 async function main() {
 	const encryptionKey = assertEncryptionKey();
 
@@ -130,6 +163,7 @@ async function main() {
 
 	await prisma.$transaction(async (tx) => {
 		const userEmails = seedUsers.map((user) => user.email);
+		const moodTagNames = seedMoodTags.map((tag) => tag.name);
 
 		const existingUsers = await tx.user.findMany({
 			where: { email: { in: userEmails } },
@@ -144,9 +178,29 @@ async function main() {
 			});
 		}
 
+		await tx.entryTag.deleteMany({
+			where: { tag: { name: { in: moodTagNames } } },
+		});
+		await tx.moodTag.deleteMany({
+			where: { name: { in: moodTagNames } },
+		});
+
 		await tx.user.deleteMany({
 			where: { email: { in: userEmails } },
 		});
+
+		await tx.moodTag.createMany({
+			data: seedMoodTags,
+			skipDuplicates: true,
+		});
+
+		const seededMoodTags = await tx.moodTag.findMany({
+			where: { name: { in: moodTagNames } },
+			select: { id: true, name: true },
+		});
+		const moodTagMap = new Map(
+			seededMoodTags.map((tag) => [tag.name, tag.id]),
+		);
 
 		const seededUsers = new Map<
 			string,
@@ -190,11 +244,15 @@ async function main() {
 				);
 			}
 
+			const entryTags = entry.tags
+				.map((tagName) => moodTagMap.get(tagName))
+				.filter((tagId): tagId is string => !!tagId);
+
 			const payload = {
 				title: entry.title,
 				content: createDelta(entry.content),
 			};
-			const { ciphertext, iv } = encrypt(
+			const { ciphertext, iv } = encryptContent(
 				JSON.stringify(payload),
 				encryptionKey,
 			);
@@ -209,9 +267,13 @@ async function main() {
 					wordCount: calcWordCount(entry.content),
 					entryDate: new Date(entry.entryDate),
 					inputMethod: entry.inputMethod,
-					tags: entry.tags,
 					isPrivate: entry.isPrivate,
 					analysisStatus: "FAILED",
+					moodTags: {
+						create: entryTags.map((tagId) => ({
+							tag: { connect: { id: tagId } },
+						})),
+					},
 				},
 				update: {
 					userId: owner.id,
@@ -220,9 +282,14 @@ async function main() {
 					wordCount: calcWordCount(entry.content),
 					entryDate: new Date(entry.entryDate),
 					inputMethod: entry.inputMethod,
-					tags: entry.tags,
 					isPrivate: entry.isPrivate,
 					analysisStatus: "PENDING",
+					moodTags: {
+						deleteMany: {},
+						create: entryTags.map((tagId) => ({
+							tag: { connect: { id: tagId } },
+						})),
+					},
 				},
 			});
 		}

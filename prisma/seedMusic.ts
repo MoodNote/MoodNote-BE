@@ -3,12 +3,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { readFileSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
 import { randomUUID } from "crypto";
+import { fileURLToPath } from "url";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
+const currentDir = dirname(fileURLToPath(import.meta.url));
 
 interface RawTrack {
 	trackName: string;
@@ -45,25 +47,42 @@ function parseKey(value: string | null): number | null {
 }
 
 function parseNames(value: string): string[] {
-	return value.split(",").map((s) => s.trim()).filter(Boolean);
+	return value
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
 }
 
 function parseGenres(value: string | null): string[] {
 	if (!value) return [];
-	return value.split("|").map((s) => s.trim()).filter(Boolean);
+	return value
+		.split("|")
+		.map((s) => s.trim())
+		.filter(Boolean);
 }
 
 async function main() {
 	console.log("Loading music data...");
-	const dataPath = join(__dirname, "../src/data/music.json");
+	const dataPath = join(currentDir, "../src/data/music.json");
 	const rawData: RawTrack[] = JSON.parse(readFileSync(dataPath, "utf-8"));
 	console.log(`Loaded ${rawData.length} tracks`);
+
+	const seen = new Set<string>();
+	const dedupedData = rawData.filter((track) => {
+		const key = `${track.trackName.toLowerCase()}|||${track.artists.toLowerCase()}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+	console.log(
+		`Deduped: ${rawData.length} → ${dedupedData.length} tracks (removed ${rawData.length - dedupedData.length} duplicates)`,
+	);
 
 	// Step 1: Collect unique artists and genres
 	const artistNameSet = new Set<string>();
 	const genreNameSet = new Set<string>();
 
-	for (const track of rawData) {
+	for (const track of dedupedData) {
 		parseNames(track.artists).forEach((name) => artistNameSet.add(name));
 		parseGenres(track.trackGenre).forEach((name) => genreNameSet.add(name));
 	}
@@ -75,7 +94,9 @@ async function main() {
 	const artistNames = [...artistNameSet];
 	for (let i = 0; i < artistNames.length; i += BATCH_SIZE) {
 		await prisma.artist.createMany({
-			data: artistNames.slice(i, i + BATCH_SIZE).map((name) => ({ name })),
+			data: artistNames
+				.slice(i, i + BATCH_SIZE)
+				.map((name) => ({ name })),
 			skipDuplicates: true,
 		});
 	}
@@ -92,18 +113,22 @@ async function main() {
 	console.log("✓ Genres seeded");
 
 	// Step 4: Build name -> id maps
-	const allArtists = await prisma.artist.findMany({ select: { id: true, name: true } });
+	const allArtists = await prisma.artist.findMany({
+		select: { id: true, name: true },
+	});
 	const artistMap = new Map(allArtists.map((a) => [a.name, a.id]));
 
-	const allGenres = await prisma.genre.findMany({ select: { id: true, name: true } });
+	const allGenres = await prisma.genre.findMany({
+		select: { id: true, name: true },
+	});
 	const genreMap = new Map(allGenres.map((g) => [g.name, g.id]));
 
 	// Step 5: Pre-assign UUIDs and insert tracks in batches
 	const trackArtistData: { trackId: string; artistId: string }[] = [];
 	const trackGenreData: { trackId: string; genreId: string }[] = [];
 
-	for (let i = 0; i < rawData.length; i += BATCH_SIZE) {
-		const batch = rawData.slice(i, i + BATCH_SIZE);
+	for (let i = 0; i < dedupedData.length; i += BATCH_SIZE) {
+		const batch = dedupedData.slice(i, i + BATCH_SIZE);
 
 		const batchWithIds = batch.map((t) => ({
 			id: randomUUID(),
@@ -142,7 +167,9 @@ async function main() {
 			}
 		}
 
-		console.log(`  Tracks: ${Math.min(i + BATCH_SIZE, rawData.length)}/${rawData.length}`);
+		console.log(
+			`  Tracks: ${Math.min(i + BATCH_SIZE, dedupedData.length)}/${dedupedData.length}`,
+		);
 	}
 	console.log("✓ Tracks seeded");
 
