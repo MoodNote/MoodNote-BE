@@ -3,14 +3,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { readFileSync } from "fs";
-import { dirname, join } from "path";
+import { join } from "path";
 import { randomUUID } from "crypto";
-import { fileURLToPath } from "url";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
-const currentDir = dirname(fileURLToPath(import.meta.url));
+const currentDir = __dirname;
 
 interface RawTrack {
 	trackName: string;

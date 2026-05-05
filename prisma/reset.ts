@@ -31,26 +31,14 @@ const resetOrder = [
 	"user",
 ] as const;
 
-type PrismaDelegate = {
-	deleteMany: () => Promise<unknown>;
-};
-
 async function main() {
 	console.log("⚠️  Resetting database...");
 
-	const operations = resetOrder
-		.map((modelName) => prisma[modelName as keyof typeof prisma])
-		.filter((delegate): delegate is PrismaDelegate => {
-			return (
-				!!delegate &&
-				typeof delegate === "object" &&
-				"deleteMany" in delegate
-			);
-		})
-		.map((delegate) => delegate.deleteMany);
-
-	for (const deleteMany of operations) {
-		await deleteMany();
+	for (const modelName of resetOrder) {
+		const delegate = prisma[modelName as keyof typeof prisma] as unknown as {
+			deleteMany: () => Promise<{ count: number }>;
+		};
+		await delegate.deleteMany();
 	}
 
 	console.log("✓ All tables cleared");

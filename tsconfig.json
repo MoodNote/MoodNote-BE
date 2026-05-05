@@ -2,11 +2,11 @@
 	"compilerOptions": {
 		/* Thiết lập lõi (Modern Base) */
 		"target": "ES2023",
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
+		"module": "CommonJS",
+		"moduleResolution": "Node",
 		"lib": ["ES2024"],
 		"types": ["node"],
-
+		"ignoreDeprecations": "6.0",
 		/* Cấu hình thư mục */
 		"rootDir": "./",
 		"outDir": "./dist",
@@ -26,7 +26,7 @@
 		"forceConsistentCasingInFileNames": true,
 
 		/* (Mới) Cú pháp module chính xác */
-		"verbatimModuleSyntax": true
+		"verbatimModuleSyntax": false
 	},
 	"include": ["src/**/*", "prisma.config.ts", "prisma/**/*"],
 	"exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
